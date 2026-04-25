@@ -116,12 +116,18 @@ async def get_upload_status(filename: str):
 
 @app.delete("/api/files/{filename}")
 async def delete_file(filename: str):
-    """Removes a file from the UI, Redis, and Qdrant Vector DB."""
+    """Removes a file from the UI, Redis, and Qdrant Vector DB. Also cancels any active ingestion."""
     try:
-        # 1. Remove from Sidebar UI Registry
+        # 1. Signal background ingestion to stop
+        redis_client.set(f"docmind:cancel:{filename}", "1", ex=120)
+        
+        # 2. Remove from Sidebar UI Registry
         redis_client.srem("docmind:files_registry", filename)
         
-        # 2. Delete all vectors in Qdrant associated with this file
+        # 3. Clean up progress tracking
+        redis_client.delete(f"docmind:progress:{filename}")
+        
+        # 4. Delete all vectors in Qdrant associated with this file
         client.delete(
             collection_name=COLLECTION_NAME,
             points_selector=models.Filter(

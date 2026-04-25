@@ -70,6 +70,13 @@ def process_pdf_background(file_path: str, filename: str):
         
         batch_size = 5
         for i in range(0, total_chunks, batch_size):
+            # Check if user cancelled (deleted) this file
+            if redis_client.get(f"docmind:cancel:{filename}"):
+                print(f"--- [INGESTION CANCELLED] {filename} was deleted by user ---")
+                redis_client.delete(f"docmind:cancel:{filename}")
+                redis_client.delete(f"docmind:progress:{filename}")
+                return
+            
             batch_end = min(i + batch_size, total_chunks)
             vector_store.add_texts(
                 texts=chunks[i:batch_end],
@@ -78,6 +85,12 @@ def process_pdf_background(file_path: str, filename: str):
             # Progress: 30% → 90% across embedding batches
             embed_progress = 30 + int((batch_end / total_chunks) * 60)
             _set_progress(filename, "embedding", embed_progress, f"Embedding {batch_end}/{total_chunks} chunks...")
+        
+        # Final cancel check before marking complete
+        if redis_client.get(f"docmind:cancel:{filename}"):
+            redis_client.delete(f"docmind:cancel:{filename}")
+            redis_client.delete(f"docmind:progress:{filename}")
+            return
         
         # 5. Register the file in Redis for the Frontend Sidebar
         redis_client.sadd("docmind:files_registry", filename)
