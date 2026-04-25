@@ -1,4 +1,5 @@
 import os
+import json
 import pymupdf
 import redis
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -18,59 +19,77 @@ redis_client = redis.from_url(REDIS_URL, **redis_kwargs)
 # NVIDIA nv-embed-v1 (4096 dimensions)
 embeddings = NVIDIAEmbeddings(model="nvidia/nv-embed-v1")
 
+def _set_progress(filename: str, stage: str, progress: int, message: str):
+    """Publish ingestion progress to Redis for frontend polling."""
+    redis_client.set(
+        f"docmind:progress:{filename}",
+        json.dumps({"stage": stage, "progress": progress, "message": message}),
+        ex=300  # Auto-expire after 5 minutes
+    )
+
 def process_pdf_background(file_path: str, filename: str):
     """
     Background task to process the PDF and store it in Qdrant.
-    The metadata is flattened so LangChain can correctly index it 
-    for the 'metadata.source' query filter.
+    Publishes progress updates to Redis at each stage.
     """
     try:
         print(f"--- [INGESTION START] Processing: {filename} ---")
+        _set_progress(filename, "extracting", 10, "Extracting text from PDF...")
         
         # 1. Extract Text using PyMuPDF
         doc = pymupdf.open(file_path)
         full_text = ""
         for page in doc:
             full_text += page.get_text("text")
+        
+        _set_progress(filename, "chunking", 25, "Splitting into chunks...")
             
         # 2. Chunk the text
-        # Overlap helps maintain context between chunks
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=700,
             chunk_overlap=100,
             separators=["\n\n", "\n", ".", " ", ""]
         )
         chunks = text_splitter.split_text(full_text)
+        total_chunks = len(chunks)
         
-        # 3. FIXED: Flattened metadata
-        # LangChain's QdrantVectorStore will automatically put these inside a 'metadata' field.
+        _set_progress(filename, "embedding", 30, f"Embedding 0/{total_chunks} chunks...")
+        
+        # 3. Flattened metadata for LangChain
         metadatas = [
-            {
-                "source": filename, 
-                "chunk_index": i
-            } for i in range(len(chunks))
+            {"source": filename, "chunk_index": i}
+            for i in range(total_chunks)
         ]
         
-        # 4. Generate Embeddings and Store in Qdrant
+        # 4. Embed in batches for progress tracking
         vector_store = QdrantVectorStore(
             client=client,
             collection_name=COLLECTION_NAME,
             embedding=embeddings,
         )
         
-        # add_texts handles the embedding and the insertion into Qdrant
-        vector_store.add_texts(texts=chunks, metadatas=metadatas)
+        batch_size = 5
+        for i in range(0, total_chunks, batch_size):
+            batch_end = min(i + batch_size, total_chunks)
+            vector_store.add_texts(
+                texts=chunks[i:batch_end],
+                metadatas=metadatas[i:batch_end]
+            )
+            # Progress: 30% → 90% across embedding batches
+            embed_progress = 30 + int((batch_end / total_chunks) * 60)
+            _set_progress(filename, "embedding", embed_progress, f"Embedding {batch_end}/{total_chunks} chunks...")
         
         # 5. Register the file in Redis for the Frontend Sidebar
-        # This makes the file appear in your 'Knowledge Base' list
         redis_client.sadd("docmind:files_registry", filename)
         
-        print(f"--- [INGESTION SUCCESS] {len(chunks)} chunks embedded for {filename} ---")
+        _set_progress(filename, "complete", 100, "Ready to query!")
+        print(f"--- [INGESTION SUCCESS] {total_chunks} chunks embedded for {filename} ---")
         
     except Exception as e:
+        _set_progress(filename, "error", 0, f"Error: {str(e)[:100]}")
         print(f"--- [INGESTION ERROR] {filename}: {str(e)} ---")
     finally:
-        # Clean up the temporary file from the server disk to save space
+        # Clean up the temporary file from the server disk
         if os.path.exists(file_path):
             os.remove(file_path)
             print(f"Temporary file {filename} removed from disk.")

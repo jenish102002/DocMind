@@ -106,6 +106,14 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/upload/status/{filename}")
+async def get_upload_status(filename: str):
+    """Returns real-time ingestion progress for a file."""
+    progress_raw = redis_client.get(f"docmind:progress:{filename}")
+    if progress_raw:
+        return json.loads(progress_raw)
+    return {"stage": "pending", "progress": 0, "message": "Waiting to start..."}
+
 @app.delete("/api/files/{filename}")
 async def delete_file(filename: str):
     """Removes a file from the UI, Redis, and Qdrant Vector DB."""

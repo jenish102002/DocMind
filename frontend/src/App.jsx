@@ -18,6 +18,7 @@ function App() {
   const [input, setInput] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [processingFiles, setProcessingFiles] = useState({});
   
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -93,9 +94,36 @@ function App() {
     try {
       await fetch(`${API_URL}/api/upload`, { method: "POST", body: formData });
       setFiles(prev => Array.from(new Set([...prev, file.name])));
+      // Start polling for ingestion progress
+      setProcessingFiles(prev => ({ ...prev, [file.name]: { stage: 'pending', progress: 5, message: 'Uploading...' } }));
+      pollProgress(file.name);
     } finally {
       setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const pollProgress = (filename) => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/upload/status/${filename}`);
+        const data = await res.json();
+        setProcessingFiles(prev => ({ ...prev, [filename]: data }));
+        if (data.stage === 'complete' || data.stage === 'error') {
+          clearInterval(interval);
+          // Remove from processing after a brief delay to show 100%
+          if (data.stage === 'complete') {
+            setTimeout(() => setProcessingFiles(prev => {
+              const updated = { ...prev };
+              delete updated[filename];
+              return updated;
+            }), 2000);
+          }
+        }
+      } catch {
+        clearInterval(interval);
+      }
+    }, 1000);
   };
 
   const handleQuery = async () => {
@@ -195,15 +223,40 @@ function App() {
               
               {files.map(f => {
                 const isSelected = selectedFiles.includes(f);
+                const proc = processingFiles[f];
                 return (
-                  <div key={f} className="group flex justify-between items-center px-3 py-2.5 rounded-lg hover:bg-white/5 transition-all cursor-pointer" onClick={() => toggleFile(f)}>
-                    <div className={`flex items-center gap-3 text-sm truncate ${isSelected ? 'text-slate-100 font-medium' : 'text-slate-400'}`}>
-                      {isSelected ? <CheckSquare size={16} className="text-blue-500" /> : <Square size={16} className="opacity-40" />}
-                      <span className="truncate">{f}</span>
+                  <div key={f} className="group rounded-lg hover:bg-white/5 transition-all cursor-pointer" onClick={() => toggleFile(f)}>
+                    <div className="flex justify-between items-center px-3 py-2.5">
+                      <div className={`flex items-center gap-3 text-sm truncate ${isSelected ? 'text-slate-100 font-medium' : 'text-slate-400'}`}>
+                        {isSelected ? <CheckSquare size={16} className="text-blue-500" /> : <Square size={16} className="opacity-40" />}
+                        <span className="truncate">{f}</span>
+                      </div>
+                      {proc ? (
+                        <Loader2 size={14} className="text-blue-400 animate-spin shrink-0" />
+                      ) : (
+                        <button onClick={(e) => deleteFile(f, e)} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:!text-red-400 transition-all">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
-                    <button onClick={(e) => deleteFile(f, e)} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:!text-red-400 transition-all">
-                      <Trash2 size={14} />
-                    </button>
+                    {/* Progress Bar */}
+                    {proc && (
+                      <div className="px-3 pb-2.5 space-y-1.5">
+                        <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ease-out ${
+                              proc.stage === 'complete' ? 'bg-green-500' : proc.stage === 'error' ? 'bg-red-500' : 'bg-blue-500'
+                            }`}
+                            style={{ width: `${proc.progress}%` }}
+                          />
+                        </div>
+                        <p className={`text-[10px] truncate ${
+                          proc.stage === 'complete' ? 'text-green-400' : proc.stage === 'error' ? 'text-red-400' : 'text-slate-500'
+                        }`}>
+                          {proc.message}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
