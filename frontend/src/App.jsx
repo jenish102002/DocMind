@@ -78,6 +78,11 @@ function App() {
     await fetch(`${API_URL}/api/files/${filename}`, { method: 'DELETE' });
     setFiles(prev => prev.filter(f => f !== filename));
     setSelectedFiles(prev => prev.filter(f => f !== filename));
+    setProcessingFiles(prev => {
+      const updated = { ...prev };
+      delete updated[filename];
+      return updated;
+    });
   };
 
   const toggleFile = (filename) => {
@@ -231,7 +236,7 @@ function App() {
                         {isSelected ? <CheckSquare size={16} className="text-blue-500" /> : <Square size={16} className="opacity-40" />}
                         <span className="truncate">{f}</span>
                       </div>
-                      {proc ? (
+                      {proc && proc.stage !== 'error' && proc.stage !== 'complete' ? (
                         <Loader2 size={14} className="text-blue-400 animate-spin shrink-0" />
                       ) : (
                         <button onClick={(e) => deleteFile(f, e)} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:!text-red-400 transition-all">
