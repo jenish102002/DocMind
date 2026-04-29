@@ -11,7 +11,12 @@
   body {
     @apply bg-background text-slate-200 antialiased selection:bg-accent/30;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
   }
+  
+  /* iOS safe area support */
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 }
 
 /* Custom Scrollbars */

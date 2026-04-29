@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Bot, User, Upload, Send, FileText, Database, 
-  Trash2, Sparkles, Loader2, Cpu, Layers, PlusCircle, MessageSquare, CheckSquare, Square, FileUp
+  Trash2, Sparkles, Loader2, Cpu, Layers, PlusCircle, MessageSquare, CheckSquare, Square, FileUp, Menu, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -19,6 +19,7 @@ function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [processingFiles, setProcessingFiles] = useState({});
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile sidebar toggle
   
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -56,12 +57,19 @@ function App() {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
+  // Close sidebar on route/session change on mobile
+  const selectSession = (id) => {
+    setCurrentSessionId(id);
+    setSidebarOpen(false);
+  };
+
   // --- CRUD ACTIONS ---
   const createNewChat = async () => {
     const res = await fetch(`${API_URL}/api/sessions`, { method: 'POST' });
     const newSession = await res.json();
     setSessions(prev => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
+    setSidebarOpen(false);
   };
 
   const deleteSession = async (id, e) => {
@@ -132,26 +140,26 @@ function App() {
   };
 
   const handleQuery = async () => {
-    if (!input.trim() || isThinking) return;
-    const userMsg = input;
-    
-    setMessages(prev => [...prev, { role: "user", content: userMsg }, { role: "assistant", content: "" }]);
+    if (!input.trim() || isThinking || !currentSessionId) return;
+
+    const userMsg = { role: "user", content: input };
+    setMessages(prev => [...prev, userMsg, { role: "assistant", content: "" }]);
     setInput("");
     setIsThinking(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/query`, {
+      const res = await fetch(`${API_URL}/api/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: userMsg, session_id: currentSessionId, selected_files: selectedFiles }),
+        body: JSON.stringify({ query: userMsg.content, session_id: currentSessionId, selected_files: selectedFiles })
       });
 
-      const reader = response.body.getReader();
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedText = "";
 
       while (true) {
-        const { value, done } = await reader.read();
+        const { done, value } = await reader.read();
         if (done) break;
         accumulatedText += decoder.decode(value, { stream: true });
         setMessages(prev => {
@@ -177,132 +185,184 @@ function App() {
     }
   };
 
-  return (
-    <div className="h-screen bg-[#09090b] flex overflow-hidden text-slate-200 selection:bg-blue-500/30 font-sans">
-      
-      {/* PREMIUM SIDEBAR (Glassmorphism inspired) */}
-      <aside className="w-72 bg-[#0f172a]/80 backdrop-blur-xl border-r border-white/5 flex flex-col shrink-0 z-40 transition-all">
-        <div className="p-5 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600/20 border border-blue-500/30 p-2 rounded-xl">
-              <Cpu size={20} className="text-blue-400" />
-            </div>
-            <h1 className="font-bold text-lg tracking-tight text-slate-100">DocMind</h1>
+  // Sidebar content extracted as component for reuse
+  const SidebarContent = () => (
+    <>
+      <div className="p-5 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600/20 border border-blue-500/30 p-2 rounded-xl">
+            <Cpu size={20} className="text-blue-400" />
+          </div>
+          <h1 className="font-bold text-lg tracking-tight text-slate-100">DocMind</h1>
+        </div>
+        {/* Close button — mobile only */}
+        <button onClick={() => setSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-slate-100 transition-colors p-1">
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="px-4 pb-4">
+        <button onClick={createNewChat} className="w-full flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/5 p-3 rounded-xl transition-all text-sm font-medium shadow-sm">
+          <PlusCircle size={18} className="text-slate-400" /> New Chat
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 custom-scrollbar space-y-8 pb-6">
+        
+        {/* HISTORY SECTION */}
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-3 px-2 flex items-center gap-2">
+            <MessageSquare size={12}/> Recent Chats
+          </p>
+          <div className="space-y-0.5">
+            {sessions.map(s => (
+              <div key={s.id} onClick={() => selectSession(s.id)} className={`w-full group cursor-pointer flex justify-between items-center px-3 py-2.5 rounded-lg text-sm transition-all ${currentSessionId === s.id ? 'bg-blue-500/10 text-blue-400 font-medium' : 'hover:bg-white/5 text-slate-400'}`}>
+                <span className="truncate pr-2">{s.title}</span>
+                <button onClick={(e) => deleteSession(s.id, e)} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:!text-red-400 transition-all">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="px-4 pb-4">
-          <button onClick={createNewChat} className="w-full flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/5 p-3 rounded-xl transition-all text-sm font-medium shadow-sm">
-            <PlusCircle size={18} className="text-slate-400" /> New Chat
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-4 custom-scrollbar space-y-8 pb-6">
-          
-          {/* HISTORY SECTION */}
-          <div>
-            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-3 px-2 flex items-center gap-2">
-              <MessageSquare size={12}/> Recent Chats
-            </p>
-            <div className="space-y-0.5">
-              {sessions.map(s => (
-                <div key={s.id} onClick={() => setCurrentSessionId(s.id)} className={`w-full group cursor-pointer flex justify-between items-center px-3 py-2.5 rounded-lg text-sm transition-all ${currentSessionId === s.id ? 'bg-blue-500/10 text-blue-400 font-medium' : 'hover:bg-white/5 text-slate-400'}`}>
-                  <span className="truncate pr-2">{s.title}</span>
-                  <button onClick={(e) => deleteSession(s.id, e)} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:!text-red-400 transition-all">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* TARGET FILES SECTION */}
-          <div>
-            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-3 px-2 flex items-center gap-2">
-              <Database size={12}/> Knowledge Base
-            </p>
-            <div className="space-y-0.5">
-              <button onClick={() => setSelectedFiles([])} className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center gap-3 ${selectedFiles.length === 0 ? 'bg-white/10 text-slate-100 font-medium' : 'hover:bg-white/5 text-slate-400'}`}>
-                <Layers size={16}/> Query All Documents
-              </button>
-              
-              {files.map(f => {
-                const isSelected = selectedFiles.includes(f);
-                const proc = processingFiles[f];
-                return (
-                  <div key={f} className="group rounded-lg hover:bg-white/5 transition-all cursor-pointer" onClick={() => toggleFile(f)}>
-                    <div className="flex justify-between items-center px-3 py-2.5">
-                      <div className={`flex items-center gap-3 text-sm truncate ${isSelected ? 'text-slate-100 font-medium' : 'text-slate-400'}`}>
-                        {isSelected ? <CheckSquare size={16} className="text-blue-500" /> : <Square size={16} className="opacity-40" />}
-                        <span className="truncate">{f}</span>
-                      </div>
-                      {proc && proc.stage !== 'error' && proc.stage !== 'complete' ? (
-                        <Loader2 size={14} className="text-blue-400 animate-spin shrink-0" />
-                      ) : (
-                        <button onClick={(e) => deleteFile(f, e)} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:!text-red-400 transition-all">
-                          <Trash2 size={14} />
-                        </button>
-                      )}
+        {/* TARGET FILES SECTION */}
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-3 px-2 flex items-center gap-2">
+            <Database size={12}/> Knowledge Base
+          </p>
+          <div className="space-y-0.5">
+            <button onClick={() => setSelectedFiles([])} className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center gap-3 ${selectedFiles.length === 0 ? 'bg-white/10 text-slate-100 font-medium' : 'hover:bg-white/5 text-slate-400'}`}>
+              <Layers size={16}/> Query All Documents
+            </button>
+            
+            {files.map(f => {
+              const isSelected = selectedFiles.includes(f);
+              const proc = processingFiles[f];
+              return (
+                <div key={f} className="group rounded-lg hover:bg-white/5 transition-all cursor-pointer" onClick={() => toggleFile(f)}>
+                  <div className="flex justify-between items-center px-3 py-2.5">
+                    <div className={`flex items-center gap-3 text-sm truncate ${isSelected ? 'text-slate-100 font-medium' : 'text-slate-400'}`}>
+                      {isSelected ? <CheckSquare size={16} className="text-blue-500" /> : <Square size={16} className="opacity-40" />}
+                      <span className="truncate">{f}</span>
                     </div>
-                    {/* Progress Bar */}
-                    {proc && (
-                      <div className="px-3 pb-2.5 space-y-1.5">
-                        <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ease-out ${
-                              proc.stage === 'complete' ? 'bg-green-500' : proc.stage === 'error' ? 'bg-red-500' : 'bg-blue-500'
-                            }`}
-                            style={{ width: `${proc.progress}%` }}
-                          />
-                        </div>
-                        <p className={`text-[10px] truncate ${
-                          proc.stage === 'complete' ? 'text-green-400' : proc.stage === 'error' ? 'text-red-400' : 'text-slate-500'
-                        }`}>
-                          {proc.message}
-                        </p>
-                      </div>
+                    {proc && proc.stage !== 'error' && proc.stage !== 'complete' ? (
+                      <Loader2 size={14} className="text-blue-400 animate-spin shrink-0" />
+                    ) : (
+                      <button onClick={(e) => deleteFile(f, e)} className="text-slate-500 opacity-0 group-hover:opacity-100 hover:!text-red-400 transition-all">
+                        <Trash2 size={14} />
+                      </button>
                     )}
                   </div>
-                );
-              })}
-            </div>
+                  {/* Progress Bar */}
+                  {proc && (
+                    <div className="px-3 pb-2.5 space-y-1.5">
+                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ease-out ${
+                            proc.stage === 'complete' ? 'bg-green-500' : proc.stage === 'error' ? 'bg-red-500' : 'bg-blue-500'
+                          }`}
+                          style={{ width: `${proc.progress}%` }}
+                        />
+                      </div>
+                      <p className={`text-[10px] truncate ${
+                        proc.stage === 'complete' ? 'text-green-400' : proc.stage === 'error' ? 'text-red-400' : 'text-slate-500'
+                      }`}>
+                        {proc.message}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="h-screen h-[100dvh] bg-[#09090b] flex overflow-hidden text-slate-200 selection:bg-blue-500/30 font-sans">
+      
+      {/* ── MOBILE SIDEBAR OVERLAY ── */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSidebarOpen(false)}
+              className="fixed inset-0 bg-black/60 z-40 md:hidden"
+            />
+            {/* Slide-in panel */}
+            <motion.aside
+              key="mobile-sidebar"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'tween', duration: 0.25 }}
+              className="fixed top-0 left-0 h-full w-[280px] bg-[#0f172a] border-r border-white/5 flex flex-col z-50 md:hidden"
+            >
+              <SidebarContent />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── DESKTOP SIDEBAR ── */}
+      <aside className="hidden md:flex w-72 bg-[#0f172a]/80 backdrop-blur-xl border-r border-white/5 flex-col shrink-0 z-40">
+        <SidebarContent />
       </aside>
 
       {/* MAIN CHAT INTERFACE */}
-      <main className="flex-1 flex flex-col relative h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/40 via-[#09090b] to-[#09090b]">
+      <main className="flex-1 flex flex-col relative h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/40 via-[#09090b] to-[#09090b] min-w-0">
         
         {/* Floating Header */}
-        <header className="absolute top-0 w-full p-4 flex justify-between items-center z-30 bg-gradient-to-b from-[#09090b] to-transparent">
-          <div className="flex items-center gap-3 bg-white/5 border border-white/5 px-4 py-2 rounded-full backdrop-blur-md">
-            <div className={`w-2 h-2 rounded-full animate-pulse ${selectedFiles.length > 0 ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]'}`} />
-            <span className="text-[11px] font-semibold tracking-wide text-slate-300">
-              {selectedFiles.length > 0 ? `Targeting ${selectedFiles.length} File(s)` : 'Global Search Active'}
-            </span>
+        <header className="shrink-0 w-full px-3 sm:px-4 py-3 flex justify-between items-center z-30 bg-gradient-to-b from-[#09090b] to-transparent gap-2">
+          
+          {/* Left: hamburger (mobile) + status pill */}
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Hamburger — mobile only */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden shrink-0 p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-slate-300 transition-all"
+            >
+              <Menu size={18} />
+            </button>
+
+            <div className="flex items-center gap-2 bg-white/5 border border-white/5 px-3 py-2 rounded-full backdrop-blur-md min-w-0">
+              <div className={`w-2 h-2 shrink-0 rounded-full animate-pulse ${selectedFiles.length > 0 ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]'}`} />
+              <span className="text-[11px] font-semibold tracking-wide text-slate-300 truncate">
+                {selectedFiles.length > 0 ? `Targeting ${selectedFiles.length} File(s)` : 'Global Search Active'}
+              </span>
+            </div>
           </div>
           
-          <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full text-sm font-medium transition-all backdrop-blur-md text-slate-200">
-            {isUploading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16}/>} 
-            <span>Upload PDF</span>
+          {/* Right: Upload button */}
+          <button onClick={() => fileInputRef.current?.click()} className="shrink-0 flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-2 rounded-full text-sm font-medium transition-all backdrop-blur-md text-slate-200">
+            {isUploading ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15}/>} 
+            <span className="hidden sm:inline">Upload PDF</span>
           </button>
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} hidden accept=".pdf" />
         </header>
 
         {/* Scrollable Chat Area */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pt-24 pb-10 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-6 pt-4 pb-10 custom-scrollbar">
           <div className="max-w-4xl mx-auto space-y-8">
             
             {/* Intelligent Empty State */}
             {messages.length === 0 && (
-              <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+              <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className="flex flex-col items-center justify-center min-h-[60vh] text-center px-2">
                 <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 flex items-center justify-center rounded-2xl mb-6 shadow-[0_0_40px_rgba(59,130,246,0.15)]">
                   <Sparkles className="text-blue-400" size={32} />
                 </div>
-                <h2 className="text-3xl font-semibold mb-3 text-slate-100 tracking-tight">How can I help you today?</h2>
-                <p className="text-slate-400 mb-10 max-w-md">Query your documents, extract key insights, or summarize complex information.</p>
+                <h2 className="text-2xl sm:text-3xl font-semibold mb-3 text-slate-100 tracking-tight">How can I help you today?</h2>
+                <p className="text-slate-400 mb-10 max-w-md text-sm sm:text-base">Query your documents, extract key insights, or summarize complex information.</p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
                   {[
                     "Summarize the main concepts discussed in the documents", 
                     "Extract the key action items and conclusions", 
@@ -317,10 +377,10 @@ function App() {
               </motion.div>
             )}
 
-            {/* Chat Flow (Claude/ChatGPT Style) */}
+            {/* Chat Flow */}
             <AnimatePresence mode="popLayout">
               {messages.map((m, i) => (
-                <motion.div key={i} initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className={`flex gap-6 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <motion.div key={i} initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className={`flex gap-3 sm:gap-6 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   
                   {/* AI Avatar */}
                   {m.role === 'assistant' && (
@@ -330,8 +390,8 @@ function App() {
                   )}
 
                   {/* Message Bubble */}
-                  <div className={`max-w-[85%] sm:max-w-[75%] ${m.role === 'user' ? 'bg-[#25252d] text-slate-100 px-5 py-3.5 rounded-3xl rounded-tr-sm' : 'text-slate-300 py-1'}`}>
-                    <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[#1e1e24] prose-pre:border prose-pre:border-white/10">
+                  <div className={`max-w-[85%] sm:max-w-[75%] ${m.role === 'user' ? 'bg-[#25252d] text-slate-100 px-4 py-3 sm:px-5 sm:py-3.5 rounded-3xl rounded-tr-sm' : 'text-slate-300 py-1'}`}>
+                    <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[#1e1e24] prose-pre:border prose-pre:border-white/10 text-sm sm:text-base">
                       <ReactMarkdown>{m.content}</ReactMarkdown>
                     </div>
                     
@@ -354,7 +414,7 @@ function App() {
         </div>
 
         {/* Premium Input Area */}
-        <footer className="shrink-0 p-4 sm:p-6 pb-8 z-30 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent">
+        <footer className="shrink-0 px-3 sm:px-6 pt-2 pb-5 sm:pb-8 z-30 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent">
           <div className="max-w-3xl mx-auto relative">
             <div className={`relative flex items-end gap-2 bg-[#18181b] border ${isThinking ? 'border-white/5' : 'border-white/10'} rounded-3xl p-2 shadow-2xl transition-all focus-within:border-blue-500/50 focus-within:bg-[#1f1f23]`}>
               
@@ -362,18 +422,18 @@ function App() {
                 minRows={1} maxRows={6}
                 value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
                 placeholder={isThinking ? "Processing..." : "Message DocMind..."}
-                className={`w-full bg-transparent resize-none py-3 px-4 focus:outline-none text-slate-100 placeholder:text-slate-500 ${isThinking ? 'cursor-not-allowed opacity-50' : ''}`}
+                className={`w-full bg-transparent resize-none py-3 px-3 sm:px-4 focus:outline-none text-slate-100 placeholder:text-slate-500 text-sm sm:text-base ${isThinking ? 'cursor-not-allowed opacity-50' : ''}`}
                 disabled={isThinking}
               />
               
               <button 
                 onClick={handleQuery} disabled={isThinking || !input.trim()} 
-                className={`shrink-0 p-3 mb-1 mr-1 rounded-full transition-all flex items-center justify-center h-10 w-10 ${!input.trim() || isThinking ? 'bg-white/5 text-slate-500 cursor-not-allowed' : 'bg-slate-100 hover:bg-white text-slate-900 shadow-md hover:scale-105 active:scale-95'}`}
+                className={`shrink-0 p-2.5 mb-1 mr-1 rounded-full transition-all flex items-center justify-center h-10 w-10 ${!input.trim() || isThinking ? 'bg-white/5 text-slate-500 cursor-not-allowed' : 'bg-slate-100 hover:bg-white text-slate-900 shadow-md hover:scale-105 active:scale-95'}`}
               >
                 {isThinking ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} className="ml-0.5" />}
               </button>
             </div>
-            <div className="text-center mt-3">
+            <div className="text-center mt-2 sm:mt-3">
               <span className="text-[10px] text-slate-500 font-medium tracking-wide">DocMind can make mistakes. Check important info.</span>
             </div>
           </div>
