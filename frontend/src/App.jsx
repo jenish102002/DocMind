@@ -196,7 +196,7 @@ function App() {
           <h1 className="font-bold text-lg tracking-tight text-slate-100">DocMind</h1>
         </div>
         {/* Close button — mobile only */}
-        <button onClick={() => setSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-slate-100 transition-colors p-1">
+        <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-slate-100 transition-colors p-1">
           <X size={20} />
         </button>
       </div>
@@ -295,7 +295,7 @@ function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 bg-black/60 z-40 md:hidden"
+              className="fixed inset-0 bg-black/60 z-40 lg:hidden"
             />
             {/* Slide-in panel */}
             <motion.aside
@@ -304,7 +304,7 @@ function App() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'tween', duration: 0.25 }}
-              className="fixed top-0 left-0 h-full w-[280px] bg-[#0f172a] border-r border-white/5 flex flex-col z-50 md:hidden"
+              className="fixed top-0 left-0 h-full w-[280px] bg-[#0f172a] border-r border-white/5 flex flex-col z-50 lg:hidden"
             >
               <SidebarContent />
             </motion.aside>
@@ -313,7 +313,7 @@ function App() {
       </AnimatePresence>
 
       {/* ── DESKTOP SIDEBAR ── */}
-      <aside className="hidden md:flex w-72 bg-[#0f172a]/80 backdrop-blur-xl border-r border-white/5 flex-col shrink-0 z-40">
+      <aside className="hidden lg:flex w-72 bg-[#0f172a]/80 backdrop-blur-xl border-r border-white/5 flex-col shrink-0 z-40">
         <SidebarContent />
       </aside>
 
@@ -328,7 +328,7 @@ function App() {
             {/* Hamburger — mobile only */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden shrink-0 p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-slate-300 transition-all"
+              className="lg:hidden shrink-0 p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-slate-300 transition-all"
             >
               <Menu size={18} />
             </button>
