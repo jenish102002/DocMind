@@ -1,51 +1,78 @@
+"""
+Vector Database Initialization and Configuration.
+
+This module sets up the Qdrant client connection and ensures that the required
+collections and payload indices exist before the application starts accepting requests.
+"""
+
 import os
+import logging
+from typing import Optional
+
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, VectorParams
+from qdrant_client.http.models import Distance, VectorParams, PayloadSchemaType
 from dotenv import load_dotenv
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load environment variables
 load_dotenv()
 
-# Connect to Qdrant (local Docker or Qdrant Cloud)
-QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
-client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-COLLECTION_NAME = "pdf_knowledge_base"
+# ==========================================
+# 1. Qdrant Client Initialization
+# ==========================================
 
+QDRANT_URL: str = os.getenv("QDRANT_URL", "http://localhost:6333")
+QDRANT_API_KEY: Optional[str] = os.getenv("QDRANT_API_KEY", None)
 
-def init_qdrant():
+try:
+    client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+except Exception as e:
+    logger.error(f"Failed to initialize QdrantClient: {e}")
+    raise RuntimeError("Qdrant connection failed.")
+
+COLLECTION_NAME: str = "pdf_knowledge_base"
+
+# ==========================================
+# 2. Database Schema Bootstrapping
+# ==========================================
+
+def init_qdrant() -> None:
     """
-    Initializes the Qdrant collection with the correct vector dimensions.
-    NVIDIA nv-embed-v1 requires a vector size of 4096.
-    Also creates a payload index for filtered search (required by Qdrant Cloud).
+    Ensure the Qdrant collection is provisioned with correct vector dimensions.
+    
+    Azure OpenAI's text-embedding-3-small requires a vector size of 1536.
+    Additionally, a keyword payload index is created on 'metadata.source' to
+    enable highly efficient file-specific document filtering during RAG.
     """
-    from qdrant_client.http.models import PayloadSchemaType
     try:
-        collections = client.get_collections().collections
-        collection_names = [c.name for c in collections]
+        collections_response = client.get_collections()
+        collection_names = [c.name for c in collections_response.collections]
         
         if COLLECTION_NAME not in collection_names:
-            print(f"Creating collection '{COLLECTION_NAME}'...")
+            logger.info(f"Provisioning new vector collection: '{COLLECTION_NAME}'...")
             client.create_collection(
                 collection_name=COLLECTION_NAME,
-                # Size 4096 is required for nvidia/nv-embed-v1
-                vectors_config=VectorParams(size=4096, distance=Distance.COSINE)
+                vectors_config=VectorParams(size=1536, distance=Distance.COSINE)
             )
-            print(f"✅ Collection '{COLLECTION_NAME}' created with 4096 dimensions.")
+            logger.info(f"Successfully created '{COLLECTION_NAME}' with 1536 dimensions.")
         else:
-            print(f"ℹ️ Collection '{COLLECTION_NAME}' already exists and is ready.")
+            logger.info(f"Vector collection '{COLLECTION_NAME}' is ready.")
         
-        # Create payload index for 'metadata.source' — required by Qdrant Cloud for filtered search
+        # Ensure metadata filtering is optimized
         client.create_payload_index(
             collection_name=COLLECTION_NAME,
             field_name="metadata.source",
             field_schema=PayloadSchemaType.KEYWORD
         )
-        print("✅ Payload index on 'metadata.source' ensured.")
+        logger.info("Payload index on 'metadata.source' is active.")
             
     except Exception as e:
-        # Index already exists errors are safe to ignore
+        # Ignore errors thrown if the payload index already exists
         if "already exists" not in str(e).lower():
-            print(f"❌ Error initializing Qdrant: {str(e)}")
+            logger.error(f"Qdrant initialization encountered an error: {e}")
 
-# Run initialization on import
+# Automatically provision the database upon module import
 init_qdrant()

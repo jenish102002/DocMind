@@ -7,6 +7,6 @@ qdrant-client
 python-dotenv
 pymupdf
 langchain-text-splitters
-langchain-nvidia-ai-endpoints
+langchain-openai
 langchain-qdrant
 tiktoken

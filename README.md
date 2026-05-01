@@ -2,7 +2,7 @@
 
 > An AI-powered document intelligence platform that lets you upload multiple PDFs and have deep, context-aware conversations across all of them simultaneously.
 
-![Tech Stack](https://img.shields.io/badge/Stack-FastAPI%20%7C%20React%20%7C%20Qdrant%20%7C%20NVIDIA%20NIM-blue)
+![Tech Stack](https://img.shields.io/badge/Stack-FastAPI%20%7C%20React%20%7C%20Qdrant%20%7C%20Azure%20AI-blue)
 ![Python](https://img.shields.io/badge/Python-3.11+-green)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
@@ -12,10 +12,10 @@
 
 - **Multi-PDF Upload** — Upload and index multiple PDF documents at once
 - **Selective Document Querying** — Choose specific files to query, or ask across all uploaded documents
-- **Streaming AI Responses** — Answers stream in real-time using LLaMA 3.1 70B via NVIDIA NIM
+- **Streaming AI Responses** — Answers stream in real-time using `gpt-oss-120b` via Azure AI Studio
 - **Persistent Session Memory** — Conversations are stored per-session with hybrid short-term and long-term memory (Redis)
 - **Real-Time Ingestion Progress** — Live progress bar tracking as PDFs are chunked and embedded in the background
-- **Semantic Vector Search** — Uses NVIDIA `nv-embed-v1` (4096-dim) embeddings stored in Qdrant
+- **Semantic Vector Search** — Uses OpenAI `text-embedding-3-small` (1536-dim) via Azure OpenAI stored in Qdrant
 - **MMR Retrieval** — Maximal Marginal Relevance ensures diverse, high-quality chunks are sent to the LLM
 - **Multi-Document Attribution** — Clearly attributes answers to the correct source document(s)
 - **Session Management** — Create, rename (auto-titled from first query), and delete chat sessions
@@ -37,7 +37,7 @@
 │  ┌────────────┐  ┌─────────────────┐  ┌──────────────────┐  │
 │  │ Ingestion  │  │  Query / Stream │  │  Session Routes  │  │
 │  │ (PyMuPDF + │  │  (LangChain +   │  │  (Redis CRUD)    │  │
-│  │  LangChain)│  │  NVIDIA NIM)    │  │                  │  │
+│  │  LangChain)│  │  Azure OpenAI)  │  │                  │  │
 │  └─────┬──────┘  └────────┬────────┘  └──────────────────┘  │
 └────────┼─────────────────┼───────────────────────────────────┘
          │                 │
@@ -48,9 +48,9 @@
     └─────────┘       └─────────────┘
                             │
                    ┌────────▼────────┐
-                   │  NVIDIA NIM API │
-                   │  nv-embed-v1    │
-                   │  llama-3.1-70b  │
+                   │   Azure AI API  │
+                   │ text-embedding-3│
+                   │  gpt-oss-120b   │
                    └─────────────────┘
 ```
 
@@ -62,8 +62,8 @@
 |---|---|
 | **Frontend** | React 19, Vite, Tailwind CSS v4, Framer Motion, Lucide React |
 | **Backend** | FastAPI, Python 3.11, Uvicorn |
-| **LLM** | `meta/llama-3.1-70b-instruct` via NVIDIA NIM |
-| **Embeddings** | `nvidia/nv-embed-v1` (4096 dimensions) |
+| **LLM** | `gpt-oss-120b` via Azure AI Studio MaaS |
+| **Embeddings** | `text-embedding-3-small` (1536 dimensions) via Azure OpenAI |
 | **Vector DB** | Qdrant (local Docker or Qdrant Cloud) |
 | **Session Store** | Redis (local, Docker, or Upstash) |
 | **PDF Parsing** | PyMuPDF |
@@ -102,7 +102,7 @@ multi-pdf-qna/
 - Python 3.11+
 - Node.js 18+
 - Docker & Docker Compose (optional but recommended)
-- [NVIDIA NIM API Key](https://build.nvidia.com) — free tier available
+- **Azure Account** with AI Studio and OpenAI access
 
 ---
 
@@ -121,9 +121,13 @@ cd DocMind/multi-pdf-qna
 cp .env.example .env
 ```
 
-Edit `.env` and fill in your NVIDIA API key:
+Edit `.env` and fill in your Azure API credentials:
 ```env
-NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
+AZURE_OPENAI_API_KEY=your-api-key
+AZURE_LLM=https://your-resource.services.ai.azure.com/models/chat/completions?api-version=2024-05-01-preview
+AZURE_EMBEDDINGS=https://your-resource.cognitiveservices.azure.com/openai/deployments/text-embedding-3-small/embeddings?api-version=2023-05-15
+AZURE_LLM_DEPLOYMENT=gpt-oss-120b
+AZURE_EMBEDDINGS_DEPLOYMENT=text-embedding-3-small
 ```
 
 *(Redis and Qdrant URLs are pre-configured for Docker — no changes needed for local use.)*
@@ -166,7 +170,11 @@ pip install -r ../requirements.txt
 
 Create a `.env` file in `multi-pdf-qna/` (or `backend/`):
 ```env
-NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
+AZURE_OPENAI_API_KEY=your-api-key
+AZURE_LLM=https://your-resource.services.ai.azure.com/models/chat/completions?api-version=2024-05-01-preview
+AZURE_EMBEDDINGS=https://your-resource.cognitiveservices.azure.com/openai/deployments/text-embedding-3-small/embeddings?api-version=2023-05-15
+AZURE_LLM_DEPLOYMENT=gpt-oss-120b
+AZURE_EMBEDDINGS_DEPLOYMENT=text-embedding-3-small
 REDIS_URL=redis://localhost:6379
 QDRANT_URL=http://localhost:6333
 FRONTEND_URL=http://localhost:5173
@@ -190,7 +198,11 @@ npm run dev
 
 | Variable | Description | Default |
 |---|---|---|
-| `NVIDIA_API_KEY` | API key from [build.nvidia.com](https://build.nvidia.com) | *(required)* |
+| `AZURE_OPENAI_API_KEY` | API key from Azure AI Studio | *(required)* |
+| `AZURE_LLM` | Full endpoint URL for MaaS LLM | *(required)* |
+| `AZURE_EMBEDDINGS` | Full endpoint URL for OpenAI Embeddings | *(required)* |
+| `AZURE_LLM_DEPLOYMENT` | Deployment name for reasoning engine | `gpt-oss-120b` |
+| `AZURE_EMBEDDINGS_DEPLOYMENT`| Deployment name for vectors | `text-embedding-3-small` |
 | `REDIS_URL` | Redis connection string. Use `rediss://` prefix for Upstash TLS | `redis://localhost:6379` |
 | `QDRANT_URL` | Qdrant instance URL (local or cloud) | `http://localhost:6333` |
 | `QDRANT_API_KEY` | API key for Qdrant Cloud (leave blank for local) | `None` |
@@ -227,8 +239,8 @@ Pass an empty array `[]` for `selected_files` to query across all uploaded docum
 ## 🧩 How It Works
 
 1. **Upload** — PDFs are saved to `temp_uploads/`, registered in Redis, and processed in a background task.
-2. **Ingestion** — PyMuPDF extracts text → LangChain splits into 700-token chunks with 100-token overlap → NVIDIA `nv-embed-v1` embeds each chunk → stored in Qdrant with `metadata.source` (filename) and `chunk_index`.
-3. **Query** — User sends a query with optional file filter → Qdrant performs MMR-based vector search (filtered or global) → top chunks are assembled into context → LLaMA 3.1 70B streams the answer.
+2. **Ingestion** — PyMuPDF extracts text → LangChain splits into 700-token chunks with 100-token overlap → Azure OpenAI `text-embedding-3-small` embeds each chunk → stored in Qdrant with `metadata.source` (filename) and `chunk_index`.
+3. **Query** — User sends a query with optional file filter → Qdrant performs MMR-based vector search (filtered or global) → top chunks are assembled into context → Azure AI Studio `gpt-oss-120b` streams the answer.
 4. **Memory** — Each session maintains a sliding window of the last 5 messages in Redis. Session titles are auto-generated from the first user query.
 
 ---
@@ -261,4 +273,4 @@ This project is licensed under the MIT License.
 
 ---
 
-*Built with ❤️ using NVIDIA NIM, Qdrant, FastAPI, and React.*
+*Built with ❤️ using Azure AI, Qdrant, FastAPI, and React.*
