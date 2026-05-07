@@ -14,7 +14,7 @@ from typing import Dict, Any
 import pymupdf
 import redis
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_openai import AzureOpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
 
 from database import client, COLLECTION_NAME
@@ -34,18 +34,16 @@ if REDIS_URL.startswith("rediss://"):
 
 redis_client = redis.from_url(REDIS_URL, **redis_kwargs)
 
-embeddings = AzureOpenAIEmbeddings(
-    azure_deployment=os.getenv("AZURE_EMBEDDINGS_DEPLOYMENT", "text-embedding-3-small"),
-    api_version="2023-05-15",
-    api_key=os.getenv("AZURE_OPENAI_API_KEY", "dummy"),
-    azure_endpoint=os.getenv("AZURE_EMBEDDINGS", "https://dummy.cognitiveservices.azure.com/").split("openai/")[0]
+embeddings = OpenAIEmbeddings(
+    api_key=os.getenv("OPENAI_API_KEY", "dummy"),
+    model=os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-3-small")
 )
 
 # ==========================================
 # 2. Progress Tracking Utility
 # ==========================================
 
-def _set_progress(filename: str, stage: str, progress: int, message: str) -> None:
+def _set_progress(filename: str, stage: str, progress: int, message: str, user: str = "global") -> None:
     """
     Publish ingestion progress to Redis for frontend polling.
     
@@ -57,7 +55,7 @@ def _set_progress(filename: str, stage: str, progress: int, message: str) -> Non
     """
     try:
         redis_client.set(
-            f"docmind:progress:{filename}",
+            f"docmind:progress:{user}:{filename}",
             json.dumps({"stage": stage, "progress": progress, "message": message}),
             ex=300  # Auto-expire after 5 minutes
         )
@@ -68,7 +66,7 @@ def _set_progress(filename: str, stage: str, progress: int, message: str) -> Non
 # 3. Core Ingestion Workflow
 # ==========================================
 
-def process_pdf_background(file_path: str, filename: str) -> None:
+def process_pdf_background(file_path: str, stored_name: str, display_name: str, user: str) -> None:
     """
     Background task to process a PDF and populate the vector store.
     
@@ -78,10 +76,13 @@ def process_pdf_background(file_path: str, filename: str) -> None:
     3. Generate embeddings and upload to Qdrant in batches.
     4. Register the document as available in the global UI registry.
     """
-    logger.info(f"--- [INGESTION START] Processing: {filename} ---")
+    logger.info(f"--- [INGESTION START] Processing: {display_name} for user: {user} ---")
+    
+    def set_progress(stage: str, progress: int, message: str):
+        _set_progress(display_name, stage, progress, message, user)
     
     try:
-        _set_progress(filename, "extracting", 10, "Extracting text from PDF...")
+        set_progress("extracting", 10, "Extracting text from PDF...")
         
         # 1. Extract Text
         doc = pymupdf.open(file_path)
@@ -91,7 +92,7 @@ def process_pdf_background(file_path: str, filename: str) -> None:
         if not full_text.strip():
             raise ValueError("No extractable text found in the PDF.")
             
-        _set_progress(filename, "chunking", 25, "Splitting into semantic chunks...")
+        set_progress("chunking", 25, "Splitting into semantic chunks...")
             
         # 2. Chunking Configuration
         text_splitter = RecursiveCharacterTextSplitter(
@@ -102,10 +103,10 @@ def process_pdf_background(file_path: str, filename: str) -> None:
         chunks = text_splitter.split_text(full_text)
         total_chunks = len(chunks)
         
-        _set_progress(filename, "embedding", 30, f"Embedding 0/{total_chunks} chunks...")
+        set_progress("embedding", 30, f"Embedding 0/{total_chunks} chunks...")
         
         # 3. Prepare Metadata & Vector Store
-        metadatas = [{"source": filename, "chunk_index": i} for i in range(total_chunks)]
+        metadatas = [{"source": stored_name, "chunk_index": i} for i in range(total_chunks)]
         
         vector_store = QdrantVectorStore(
             client=client,
@@ -117,9 +118,9 @@ def process_pdf_background(file_path: str, filename: str) -> None:
         batch_size = 5
         for i in range(0, total_chunks, batch_size):
             # Check for user-initiated cancellation
-            if redis_client.get(f"docmind:cancel:{filename}"):
-                logger.info(f"--- [INGESTION CANCELLED] {filename} was aborted by user. ---")
-                redis_client.delete(f"docmind:cancel:{filename}", f"docmind:progress:{filename}")
+            if redis_client.get(f"docmind:cancel:{stored_name}"):
+                logger.info(f"--- [INGESTION CANCELLED] {display_name} was aborted by user. ---")
+                redis_client.delete(f"docmind:cancel:{stored_name}", f"docmind:progress:{user}:{display_name}")
                 return
             
             batch_end = min(i + batch_size, total_chunks)
@@ -130,28 +131,28 @@ def process_pdf_background(file_path: str, filename: str) -> None:
             
             # Interpolate progress from 30% to 90%
             embed_progress = 30 + int((batch_end / total_chunks) * 60)
-            _set_progress(filename, "embedding", embed_progress, f"Embedding {batch_end}/{total_chunks} chunks...")
+            set_progress("embedding", embed_progress, f"Embedding {batch_end}/{total_chunks} chunks...")
         
         # Final cancellation check before finalization
-        if redis_client.get(f"docmind:cancel:{filename}"):
-            redis_client.delete(f"docmind:cancel:{filename}", f"docmind:progress:{filename}")
+        if redis_client.get(f"docmind:cancel:{stored_name}"):
+            redis_client.delete(f"docmind:cancel:{stored_name}", f"docmind:progress:{user}:{display_name}")
             return
         
         # 5. Finalize & Register
-        redis_client.sadd("docmind:files_registry", filename)
-        _set_progress(filename, "complete", 100, "Ready to query!")
-        logger.info(f"--- [INGESTION SUCCESS] {total_chunks} chunks embedded for {filename} ---")
+        redis_client.sadd(f"docmind:files:{user}", display_name)
+        set_progress("complete", 100, "Ready to query!")
+        logger.info(f"--- [INGESTION SUCCESS] {total_chunks} chunks embedded for {display_name} ---")
         
     except Exception as e:
         error_msg = str(e)[:100]
-        _set_progress(filename, "error", 0, f"Error: {error_msg}")
-        logger.error(f"--- [INGESTION ERROR] {filename}: {e} ---")
+        _set_progress(display_name, "error", 0, f"Error: {error_msg}", user)
+        logger.error(f"--- [INGESTION ERROR] {display_name}: {e} ---")
         
     finally:
         # Guarantee removal of temporary local file
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
-                logger.info(f"Cleaned up temporary file: {filename}")
+                logger.info(f"Cleaned up temporary file: {display_name}")
             except OSError as e:
                 logger.warning(f"Failed to remove temporary file {file_path}: {e}")

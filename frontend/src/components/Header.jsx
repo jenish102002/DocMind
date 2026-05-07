@@ -1,4 +1,3 @@
-import React from 'react';
 import { Menu, FileUp, Loader2 } from 'lucide-react';
 
 export const Header = ({ 

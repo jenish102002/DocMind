@@ -1,5 +1,4 @@
-import React from 'react';
-import { Cpu, PlusCircle, MessageSquare, Database, Layers, CheckSquare, Square, Trash2, Loader2, X } from 'lucide-react';
+import { Cpu, PlusCircle, MessageSquare, Database, Layers, CheckSquare, Square, Trash2, Loader2, X, LogOut, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Sidebar = ({
@@ -15,9 +14,11 @@ export const Sidebar = ({
   deleteSession,
   toggleFile,
   setSelectedFiles,
-  deleteFile
+  deleteFile,
+  handleLogout,
+  userEmail
 }) => {
-  const SidebarContent = () => (
+  const sidebarContentJSX = (
     <>
       <div className="p-5 flex justify-between items-center">
         <div className="flex items-center gap-3">
@@ -104,6 +105,21 @@ export const Sidebar = ({
           </div>
         </div>
       </div>
+      
+      <div className="p-4 border-t border-white/5 bg-white/[0.02]">
+        <div className="flex items-center gap-3 px-1 mb-3">
+          <div className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/20 flex items-center justify-center shrink-0">
+            <User size={14} className="text-blue-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wide">Signed in as</p>
+            <p className="text-xs text-slate-300 font-medium truncate">{userEmail}</p>
+          </div>
+        </div>
+        <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-slate-500 hover:text-white hover:bg-white/5 transition-colors text-xs font-medium">
+          <LogOut size={14} /> Sign Out
+        </button>
+      </div>
     </>
   );
 
@@ -128,14 +144,14 @@ export const Sidebar = ({
               transition={{ type: 'tween', duration: 0.25 }}
               className="fixed top-0 left-0 h-full w-[280px] bg-[#0f172a] border-r border-white/5 flex flex-col z-50 lg:hidden"
             >
-              <SidebarContent />
+              {sidebarContentJSX}
             </motion.aside>
           </>
         )}
       </AnimatePresence>
 
       <aside className="hidden lg:flex w-72 bg-[#0f172a]/80 backdrop-blur-xl border-r border-white/5 flex-col shrink-0 z-40">
-        <SidebarContent />
+        {sidebarContentJSX}
       </aside>
     </>
   );

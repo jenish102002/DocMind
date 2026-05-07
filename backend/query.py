@@ -2,7 +2,7 @@
 Core Retrieval-Augmented Generation (RAG) Engine.
 
 This module handles querying the Qdrant vector database, managing conversational memory
-in Redis, and streaming responses back to the client using Azure AI Studio models.
+in Redis, and streaming responses back to the client using OpenAI models.
 """
 
 import os
@@ -11,9 +11,8 @@ import logging
 from typing import List, Dict, Tuple, Optional, Generator, Any
 
 import redis
-import tiktoken
 from qdrant_client.http import models
-from langchain_openai import ChatOpenAI, AzureOpenAIEmbeddings
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
 
 from database import client, COLLECTION_NAME
@@ -38,29 +37,23 @@ if REDIS_URL.startswith("rediss://"):
 redis_client = redis.from_url(REDIS_URL, **redis_kwargs)
 
 # ==========================================
-# 2. Azure AI Model Configuration
+# 2. OpenAI Model Configuration
 # ==========================================
 
 # Embeddings Engine
-embeddings = AzureOpenAIEmbeddings(
-    azure_deployment=os.getenv("AZURE_EMBEDDINGS_DEPLOYMENT", "text-embedding-3-small"),
-    api_version="2023-05-15",
-    api_key=os.getenv("AZURE_OPENAI_API_KEY", "dummy"),
-    azure_endpoint=os.getenv("AZURE_EMBEDDINGS", "https://dummy.cognitiveservices.azure.com/").split("openai/")[0]
+embeddings = OpenAIEmbeddings(
+    api_key=os.getenv("OPENAI_API_KEY", "dummy"),
+    model=os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-3-small")
 )
 
 # Reasoning Engine (LLM)
 llm = ChatOpenAI(
-    model=os.getenv("AZURE_LLM_DEPLOYMENT", "gpt-oss-120b"),
-    api_key=os.getenv("AZURE_OPENAI_API_KEY", "dummy"),
-    base_url=os.getenv("AZURE_LLM", "https://dummy.services.ai.azure.com/models/chat/completions").split("/chat/")[0],
-    default_query={"api-version": "2024-05-01-preview"},
+    model=os.getenv("OPENAI_LLM_MODEL", "gpt-4o-mini"),
+    api_key=os.getenv("OPENAI_API_KEY", "dummy"),
     temperature=0.3,
-    max_tokens=1024,
+    max_tokens=2048,
     streaming=True
 )
-
-tokenizer = tiktoken.get_encoding("cl100k_base")
 
 # Vector Store Singleton
 vector_store = QdrantVectorStore(
@@ -105,13 +98,21 @@ def _build_search_filter(selected_files: Optional[List[str]]) -> Optional[models
     # Return an OR-based filter (should match any of the provided files)
     return models.Filter(should=conditions)
 
+def _extract_user_email(session_id: str) -> str:
+    """Extract user email from a composite session_id like 'user@email.com:sid_xxx'."""
+    if ":" in session_id:
+        parts = session_id.split(":")
+        # The session_id format is "email:sid_xxx"
+        return ":".join(parts[:-1])
+    return ""
+
 def process_chat_query_stream(user_query: str, session_id: str, selected_files: Optional[List[str]] = None) -> Generator[str, None, None]:
     """
     Execute a semantic search and stream an AI-generated response.
     
     Args:
         user_query: The question posed by the user.
-        session_id: Session identifier to load and save history.
+        session_id: Session identifier (format: "user_email:sid_xxx").
         selected_files: Optional list of specific files to constrain the search.
         
     Yields:
@@ -119,56 +120,71 @@ def process_chat_query_stream(user_query: str, session_id: str, selected_files: 
     """
     # 1. Load Conversational Context
     summary, recent_history = get_hybrid_memory(session_id)
-    history_str = "\n".join([f"{m['role']}: {m['content']}" for m in recent_history[-5:]])
+    history_str = "\n".join([f"{m['role']}: {m['content']}" for m in recent_history[-6:]])
 
-    # 2. Vector Retrieval (MMR)
+    # 2. Vector Retrieval — MMR for diversity + relevance balance
     search_filter = _build_search_filter(selected_files)
     context_text = ""
-    
+
     try:
         if search_filter:
+            logger.info(f"--- [FILTERED SEARCH] MMR on selected file(s) ---")
             docs = vector_store.max_marginal_relevance_search(
                 query=user_query,
-                k=8,  # Target specific files heavily
-                fetch_k=30,
+                k=8,
+                fetch_k=25,
+                lambda_mult=0.6,
                 filter=search_filter
             )
         else:
-            logger.info("--- [GLOBAL SEARCH] Executing MMR across all documents ---")
+            logger.info("--- [GLOBAL SEARCH] MMR across all documents ---")
             docs = vector_store.max_marginal_relevance_search(
                 query=user_query,
-                k=12, # Broad search requires more context
-                fetch_k=50,
+                k=10,
+                fetch_k=30,
                 lambda_mult=0.5
             )
 
         context_text = "\n\n---\n\n".join([doc.page_content for doc in docs])
         logger.info(f"--- [RETRIEVAL SUCCESS] Sent {len(docs)} chunks to LLM ---")
-        
+
     except Exception as e:
         logger.error(f"Vector search failed: {e}")
-        context_text = "Knowledge base search failed."
+        context_text = ""
 
-    # 3. Prompt Construction
-    prompt = f"""
-    You are DocMind, an advanced document intelligence AI. Answer the user's question directly, professionally, and comprehensively using ONLY the provided Context and History.
+    # 3. Prompt Construction — structured for maximum accuracy
+    has_context = bool(context_text.strip())
+    context_block = context_text if has_context else "No relevant content was found in the uploaded documents."
+    history_block = history_str if history_str.strip() else "No prior conversation."
+    summary_block = summary if summary and summary != "Start of conversation." else "None yet."
 
-    CORE INSTRUCTIONS:
-    1. Extract Details: If asked about a specific topic, summarize the actual details from the Context.
-    2. Multiple Documents: If the context contains information from multiple different documents, clearly differentiate between them. Do not hallucinate connections.
-    3. Missing Info: If the answer cannot be found in the Context, clearly state that the uploaded documents do not contain that information.
+    prompt = f"""You are **DocMind**, a professional AI document analyst. Your job is to answer user questions by analyzing the uploaded PDF documents provided in the [DOCUMENT CONTEXT] section below.
 
-    [DOCUMENT CONTEXT]: 
-    {context_text}
-    
-    [LONG-TERM SUMMARY]: 
-    {summary}
-    
-    [RECENT HISTORY]: 
-    {history_str}
-    
-    User Question: {user_query}
-    DocMind Answer:"""
+## YOUR RULES (follow strictly)
+
+1. **GROUND YOUR ANSWERS IN THE CONTEXT ONLY.** Every claim you make must come directly from the [DOCUMENT CONTEXT]. If you cannot find the answer there, say: "The uploaded documents do not contain this information."
+2. **NEVER HALLUCINATE.** Do not invent facts, statistics, names, dates, or details that are not explicitly present in the context. When uncertain, say so.
+3. **MULTI-DOCUMENT AWARENESS.** If the context contains text from multiple PDFs, attribute each piece of information to its source document. Do not merge or confuse information across documents.
+4. **FOLLOW-UP AWARENESS.** Use [CONVERSATION HISTORY] and [CONVERSATION SUMMARY] to understand follow-up questions. If the user says "explain more" or "what about X", refer back to the context and prior discussion.
+5. **STRUCTURE YOUR ANSWERS.** Use markdown: headings for sections, **bold** for key terms, bullet points for lists, and code blocks for technical content. Keep answers clear, concise, and scannable.
+6. **BE HELPFUL, NOT VERBOSE.** Answer the question completely but do not pad with unnecessary filler. Quality > quantity.
+
+---
+
+## [DOCUMENT CONTEXT]
+{context_block}
+
+## [CONVERSATION HISTORY]
+{history_block}
+
+## [CONVERSATION SUMMARY]
+{summary_block}
+
+---
+
+**User:** {user_query}
+
+**DocMind:**"""
 
     # 4. Stream Response & Accumulate
     full_answer = ""
@@ -181,10 +197,14 @@ def process_chat_query_stream(user_query: str, session_id: str, selected_files: 
     recent_history.append({"role": "assistant", "content": full_answer})
     redis_client.set(f"docmind:recent:{session_id}", json.dumps(recent_history))
 
-    # 6. Auto-generate Session Title
+    # 6. Auto-generate Session Title (user-scoped Redis key)
     if len(recent_history) <= 2:
-        session_data_raw = redis_client.hget("docmind:sessions", session_id)
-        if session_data_raw:
-            session_data = json.loads(session_data_raw)
-            session_data["title"] = user_query[:25] + ("..." if len(user_query) > 25 else "")
-            redis_client.hset("docmind:sessions", session_id, json.dumps(session_data))
+        user_email = _extract_user_email(session_id)
+        if user_email:
+            # Extract just the sid part: "email:sid_xxx" -> "sid_xxx"
+            sid_part = session_id.split(":")[-1]
+            session_data_raw = redis_client.hget(f"docmind:sessions:{user_email}", sid_part)
+            if session_data_raw:
+                session_data = json.loads(session_data_raw)
+                session_data["title"] = user_query[:30] + ("..." if len(user_query) > 30 else "")
+                redis_client.hset(f"docmind:sessions:{user_email}", sid_part, json.dumps(session_data))
