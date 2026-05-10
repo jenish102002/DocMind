@@ -15,9 +15,6 @@ import pymupdf
 import redis
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
-from langchain_qdrant import QdrantVectorStore
-
-from database import client, COLLECTION_NAME
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -105,14 +102,11 @@ def process_pdf_background(file_path: str, stored_name: str, display_name: str, 
         
         set_progress("embedding", 30, f"Embedding 0/{total_chunks} chunks...")
         
-        # 3. Prepare Metadata & Vector Store
+        # 3. Prepare Metadata & Vector Store (reuse lazy-initialized store)
         metadatas = [{"source": stored_name, "chunk_index": i} for i in range(total_chunks)]
         
-        vector_store = QdrantVectorStore(
-            client=client,
-            collection_name=COLLECTION_NAME,
-            embedding=embeddings,
-        )
+        from query import get_vector_store
+        vector_store = get_vector_store()
         
         # 4. Batch Embedding Processing
         batch_size = 5
