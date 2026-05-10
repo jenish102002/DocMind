@@ -7,13 +7,15 @@
 __pycache__/
 *.pyc
 venv/
+.venv/
 *.egg-info/
+.mypy_cache/
 
 # Node
 node_modules/
 dist/
 
-# Temp
+# Temp & OS
 temp_uploads/
 *.log
 .DS_Store

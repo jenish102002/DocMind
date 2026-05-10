@@ -6,10 +6,13 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_LLM_MODEL=${OPENAI_LLM_MODEL:-gpt-4o-mini}
+      - OPENAI_EMBEDDINGS_MODEL=${OPENAI_EMBEDDINGS_MODEL:-text-embedding-3-small}
       - QDRANT_URL=http://qdrant:6333
       - REDIS_URL=redis://redis:6379
-      - FRONTEND_URL=http://localhost:5173
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
     depends_on:
       - redis
       - qdrant

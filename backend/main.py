@@ -55,9 +55,16 @@ except Exception as e:
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
+# Build CORS origins: always include the configured frontend + localhost for dev
+allowed_origins = list(set([
+    FRONTEND_URL,
+    "http://localhost:5173",
+    "http://localhost:4173",  # Vite preview
+]))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL, "http://localhost:5173"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
