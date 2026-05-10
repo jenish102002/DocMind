@@ -9,4 +9,4 @@ pymupdf
 langchain-text-splitters
 langchain-openai
 langchain-qdrant
-tiktoken
+pyjwt
