@@ -55,12 +55,20 @@ llm = ChatOpenAI(
     streaming=True
 )
 
-# Vector Store Singleton
-vector_store = QdrantVectorStore(
-    client=client,
-    collection_name=COLLECTION_NAME,
-    embedding=embeddings,
-)
+# Vector Store — lazy initialization to prevent startup crash if OpenAI is unreachable
+_vector_store = None
+
+def get_vector_store() -> QdrantVectorStore:
+    """Create the vector store on first use, not at import time."""
+    global _vector_store
+    if _vector_store is None:
+        _vector_store = QdrantVectorStore(
+            client=client,
+            collection_name=COLLECTION_NAME,
+            embedding=embeddings,
+        )
+        logger.info("Vector store initialized successfully.")
+    return _vector_store
 
 # ==========================================
 # 3. Core Query Logic
@@ -129,7 +137,7 @@ def process_chat_query_stream(user_query: str, session_id: str, selected_files: 
     try:
         if search_filter:
             logger.info(f"--- [FILTERED SEARCH] MMR on selected file(s) ---")
-            docs = vector_store.max_marginal_relevance_search(
+            docs = get_vector_store().max_marginal_relevance_search(
                 query=user_query,
                 k=8,
                 fetch_k=25,
@@ -138,7 +146,7 @@ def process_chat_query_stream(user_query: str, session_id: str, selected_files: 
             )
         else:
             logger.info("--- [GLOBAL SEARCH] MMR across all documents ---")
-            docs = vector_store.max_marginal_relevance_search(
+            docs = get_vector_store().max_marginal_relevance_search(
                 query=user_query,
                 k=10,
                 fetch_k=30,
