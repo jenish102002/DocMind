@@ -77,8 +77,8 @@ export const Sidebar = ({
                 return (
                   <div key={f} className={`group rounded-xl transition-all cursor-pointer border ${isSelected ? 'bg-accent/5 border-accent/20' : 'border-transparent hover:bg-white/5'}`} onClick={() => toggleFile(f)}>
                     <div className="flex justify-between items-center px-3 py-2.5">
-                      <div className={`flex items-center gap-3 text-sm truncate ${isSelected ? 'text-accent-hover font-medium' : 'text-slate-400'}`}>
-                        {isSelected ? <CheckSquare size={16} className="text-accent" /> : <Square size={16} className="opacity-40" />}
+                      <div className={`flex items-center gap-3 text-sm min-w-0 ${isSelected ? 'text-accent-hover font-medium' : 'text-slate-400'}`}>
+                        {isSelected ? <CheckSquare size={16} className="text-accent shrink-0" /> : <Square size={16} className="opacity-40 shrink-0" />}
                         <span className="truncate">{f}</span>
                       </div>
                       {proc && proc.stage !== 'error' && proc.stage !== 'complete' ? (
