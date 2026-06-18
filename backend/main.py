@@ -6,6 +6,9 @@ file operations, and AI querying. All data is scoped per authenticated user.
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 import shutil
 import json
 import time

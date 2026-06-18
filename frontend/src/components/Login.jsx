@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Mail, Lock, Loader2, Sparkles, ArrowRight, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Mail, Lock, Loader2, Sparkles, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -8,7 +9,25 @@ export const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let interval;
+    if (loading) {
+      setLoadingProgress(0);
+      interval = setInterval(() => {
+        setLoadingProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + Math.floor(Math.random() * 15) + 5;
+        });
+      }, 100);
+    } else {
+      setLoadingProgress(100);
+      setTimeout(() => setLoadingProgress(0), 500);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,105 +59,161 @@ export const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090b] flex items-center justify-center p-4 font-sans relative overflow-hidden selection:bg-blue-500/30">
-      <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-blue-600/8 rounded-full blur-[140px]" />
-      <div className="absolute bottom-1/4 right-1/3 w-[500px] h-[500px] bg-indigo-600/8 rounded-full blur-[140px]" />
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-accent/20 rounded-full blur-[120px] mix-blend-screen animate-pulse" style={{ animationDuration: '8s' }} />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-indigo-600/20 rounded-full blur-[100px] mix-blend-screen animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
 
-      <div className="w-full max-w-sm relative z-10">
-        {/* Logo */}
+      {/* Full Screen Loading Overlay */}
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+            animate={{ opacity: 1, backdropFilter: "blur(12px)" }}
+            exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-background/60"
+          >
+            <div className="flex flex-col items-center gap-4 glass-panel p-8 rounded-3xl shadow-2xl w-[300px]">
+              <Loader2 size={40} className="text-accent animate-spin" />
+              <p className="text-lg font-semibold tracking-wide text-white">
+                {activeTab === 'login' ? 'Authenticating...' : 'Creating Account...'}
+              </p>
+              
+              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5 mt-2">
+                <div 
+                  className="h-full bg-accent rounded-full transition-all duration-200 ease-out"
+                  style={{ width: `${loadingProgress}%` }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="w-full max-w-[400px] relative z-10"
+      >
+        {/* Logo Header */}
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-2xl mx-auto flex items-center justify-center shadow-xl shadow-blue-500/25 mb-5">
-            <Sparkles className="text-white w-7 h-7" />
-          </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">DocMind AI</h1>
-          <p className="text-slate-500 text-sm mt-1">Your intelligent PDF workspace</p>
+          <motion.div 
+            whileHover={{ rotate: 180, scale: 1.1 }}
+            transition={{ duration: 0.6, type: "spring" }}
+            className="w-16 h-16 bg-gradient-to-tr from-accent to-indigo-500 rounded-2xl mx-auto flex items-center justify-center shadow-xl shadow-accent/20 mb-5 relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-white/20 blur-xl rounded-full" />
+            <Sparkles className="text-white w-8 h-8 relative z-10" />
+          </motion.div>
+          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">DocMind AI</h1>
+          <p className="text-slate-400 text-sm font-medium">Your intelligent PDF workspace</p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white/[0.04] border border-white/8 rounded-2xl p-7 shadow-2xl backdrop-blur-xl">
+        {/* Auth Card */}
+        <div className="glass-panel rounded-3xl p-8 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent via-indigo-500 to-purple-500 opacity-50" />
+          
           {/* Tabs */}
-          <div className="flex bg-white/5 rounded-xl p-1 mb-7">
+          <div className="flex bg-white/5 rounded-xl p-1 mb-8 relative">
             {['login', 'signup'].map(tab => (
               <button
                 key={tab}
                 onClick={() => switchTab(tab)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize transition-all duration-200 ${
-                  activeTab === tab
-                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
-                    : 'text-slate-400 hover:text-slate-200'
+                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold capitalize transition-all duration-300 relative z-10 ${
+                  activeTab === tab ? 'text-white' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {tab === 'login' ? 'Log In' : 'Sign Up'}
+                {activeTab === tab && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute inset-0 bg-white/10 rounded-lg shadow-sm border border-white/10"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                {tab === 'login' ? 'Sign In' : 'Create Account'}
               </button>
             ))}
           </div>
 
-          {/* Error */}
-          {error && (
-            <div className="mb-5 flex items-start gap-2.5 p-3 bg-red-500/8 border border-red-500/15 rounded-xl text-red-400 text-sm">
-              <AlertCircle size={16} className="shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0, mb: 0 }}
+                animate={{ opacity: 1, height: 'auto', mb: 20 }}
+                exit={{ opacity: 0, height: 0, mb: 0 }}
+                className="flex items-start gap-3 p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-medium"
+              >
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                <span className="leading-snug">{error}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5 ml-0.5">Email</label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input
-                  id="email-input"
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  required
-                  className="w-full bg-white/5 border border-white/8 focus:border-blue-500/60 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/15 transition-all"
-                />
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-400 ml-1 uppercase tracking-wider">Email Address</label>
+              <div className="relative group">
+                <div className="absolute inset-0 bg-accent/20 rounded-xl blur-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
+                <div className="relative flex items-center bg-white/[0.03] border border-white/10 group-focus-within:border-accent/50 rounded-xl transition-all duration-300">
+                  <Mail size={18} className="absolute left-4 text-slate-500 group-focus-within:text-accent transition-colors" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    className="w-full bg-transparent py-3.5 pl-11 pr-4 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5 ml-0.5">Password</label>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input
-                  id="password-input"
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder={activeTab === 'signup' ? 'At least 6 characters' : '••••••••'}
-                  required
-                  className="w-full bg-white/5 border border-white/8 focus:border-blue-500/60 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/15 transition-all"
-                />
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-400 ml-1 uppercase tracking-wider">Password</label>
+              <div className="relative group">
+                <div className="absolute inset-0 bg-accent/20 rounded-xl blur-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
+                <div className="relative flex items-center bg-white/[0.03] border border-white/10 group-focus-within:border-accent/50 rounded-xl transition-all duration-300">
+                  <Lock size={18} className="absolute left-4 text-slate-500 group-focus-within:text-accent transition-colors" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder={activeTab === 'signup' ? 'At least 6 characters' : '••••••••'}
+                    required
+                    className="w-full bg-transparent py-3.5 pl-11 pr-4 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
 
-            <button
-              id="auth-submit-btn"
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full mt-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-[0.98] group"
+              className="w-full mt-2 bg-gradient-to-r from-accent to-indigo-500 hover:from-accent-hover hover:to-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-3.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(59,130,246,0.3)] group"
             >
-              {loading
-                ? <Loader2 size={16} className="animate-spin" />
-                : <>
-                    {activeTab === 'login' ? 'Sign In' : 'Create Account'}
-                    <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
-                  </>
-              }
-            </button>
+              {loading ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <>
+                  {activeTab === 'login' ? 'Secure Sign In' : 'Create Account'}
+                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </motion.button>
           </form>
 
-          <p className="text-center text-xs text-slate-600 mt-5">
-            {activeTab === 'login'
-              ? <>No account? <button onClick={() => switchTab('signup')} className="text-blue-400 hover:text-blue-300 transition-colors">Sign up free</button></>
-              : <>Already have an account? <button onClick={() => switchTab('login')} className="text-blue-400 hover:text-blue-300 transition-colors">Log in</button></>
-            }
-          </p>
+          <div className="mt-6 flex items-center justify-center gap-2 text-xs font-medium text-slate-500">
+            <ShieldCheck size={14} className="text-green-500/70" />
+            <span>Secure 256-bit encryption</span>
+          </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
+

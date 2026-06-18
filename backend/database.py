@@ -29,9 +29,12 @@ QDRANT_API_KEY: Optional[str] = os.getenv("QDRANT_API_KEY", None)
 
 try:
     client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+    # Test connection
+    client.get_collections()
+    logger.info("Successfully connected to Qdrant Cloud.")
 except Exception as e:
-    logger.error(f"Failed to initialize QdrantClient: {e}")
-    raise RuntimeError("Qdrant connection failed.")
+    logger.warning(f"Failed to connect to Qdrant Cloud ({e}). Falling back to local disk database at ./qdrant_local_db")
+    client = QdrantClient(path="./qdrant_local_db")
 
 COLLECTION_NAME: str = "pdf_knowledge_base"
 

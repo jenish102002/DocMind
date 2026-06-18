@@ -53,6 +53,9 @@ function App() {
       handleLogout();
       throw new Error('Unauthorized');
     }
+    if (!res.ok) {
+      throw new Error(`HTTP Error: ${res.status}`);
+    }
     return res;
   }, [handleLogout]);
 
@@ -70,13 +73,19 @@ function App() {
         const res = await fetch(`${API_URL}/api/auth/me`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!res.ok) throw new Error('Invalid token');
-        const data = await res.json();
-        setUserEmail(data.email);
-      } catch {
-        // Token is invalid/expired — force logout
-        localStorage.removeItem('docmind_token');
-        setToken(null);
+        if (res.status === 401) {
+          throw new Error('Invalid token');
+        }
+        if (res.ok) {
+          const data = await res.json();
+          setUserEmail(data.email);
+        }
+      } catch (err) {
+        if (err.message === 'Invalid token') {
+          localStorage.removeItem('docmind_token');
+          setToken(null);
+        }
+        console.error('Validation error (could be network offline):', err);
       } finally {
         setIsVerifying(false);
       }
@@ -192,7 +201,17 @@ function App() {
       setFiles(prev => Array.from(new Set([...prev, file.name])));
       setProcessingFiles(prev => ({ ...prev, [file.name]: { stage: 'pending', progress: 5, message: 'Uploading...' } }));
       pollProgress(file.name);
-    } catch { /* handled by authFetch */ }
+    } catch (err) { 
+      console.error('Upload failed', err);
+      setProcessingFiles(prev => ({ ...prev, [file.name]: { stage: 'error', progress: 0, message: 'Upload failed. Please try again.' } }));
+      setTimeout(() => {
+        setProcessingFiles(prev => {
+          const updated = { ...prev };
+          delete updated[file.name];
+          return updated;
+        });
+      }, 5000);
+    }
     finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -281,10 +300,11 @@ function App() {
   // Show loading spinner while validating JWT
   if (isVerifying) {
     return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-500 text-sm">Verifying session...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
+        <div className="flex flex-col items-center gap-4 relative z-10">
+          <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-400 text-sm font-medium uppercase tracking-widest">Verifying session...</p>
         </div>
       </div>
     );
@@ -296,7 +316,8 @@ function App() {
   }
 
   return (
-    <div className="h-screen h-[100dvh] bg-[#09090b] flex overflow-hidden text-slate-200 selection:bg-blue-500/30 font-sans">
+    <div className="h-screen h-[100dvh] bg-background flex overflow-hidden text-slate-200 selection:bg-accent/30 font-sans relative">
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none" />
 
       <Sidebar
         sessions={sessions}
@@ -316,7 +337,7 @@ function App() {
         userEmail={userEmail}
       />
 
-      <main className="flex-1 flex flex-col relative h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/40 via-[#09090b] to-[#09090b] min-w-0">
+      <main className="flex-1 flex flex-col relative h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-background to-background min-w-0 z-10">
 
         <Header
           setSidebarOpen={setSidebarOpen}

@@ -7,6 +7,9 @@ while maintaining real-time progress state in Redis.
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 import json
 import logging
 from typing import Dict, Any
