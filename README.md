@@ -2,8 +2,11 @@
 
 > An AI-powered document intelligence platform with user authentication. Upload multiple PDFs and have deep, context-aware conversations across all of them — with per-user data isolation.
 
-![Tech Stack](https://img.shields.io/badge/Stack-FastAPI%20%7C%20React%20%7C%20Qdrant%20%7C%20OpenAI-blue)
+### 🔗 Live demo: **[docmind-3hi.pages.dev](https://docmind-3hi.pages.dev)**
+
+![Stack](https://img.shields.io/badge/Stack-FastAPI%20%7C%20React%20%7C%20Qdrant%20%7C%20OpenAI-blue)
 ![Python](https://img.shields.io/badge/Python-3.11+-green)
+![Deploy](https://img.shields.io/badge/Deploy-AWS%20EC2%20%2B%20Cloudflare-orange)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
 ---
@@ -12,15 +15,15 @@
 
 - **🔐 User Authentication** — Email/password signup & login with JWT tokens (30-day sessions)
 - **👤 Per-User Data Isolation** — Every user's PDFs, chat history, and vector data are fully siloed
-- **📄 Multi-PDF Upload** — Upload and index multiple PDF documents at once
+- **📄 Multi-PDF Upload** — Upload and index multiple PDF documents, with drag-and-drop
 - **🎯 Selective Document Querying** — Choose specific files to query, or ask across all uploaded documents
 - **⚡ Streaming AI Responses** — Answers stream in real-time using OpenAI `gpt-4o-mini`
 - **🧠 Persistent Session Memory** — Conversations are stored per-session with hybrid memory (Redis)
 - **📊 Real-Time Ingestion Progress** — Live progress bar tracking as PDFs are chunked and embedded
 - **🔍 MMR Retrieval** — Maximal Marginal Relevance ensures diverse, high-quality chunks from the vector DB
-- **📚 Multi-Document Attribution** — Clearly attributes answers to the correct source document(s)
 - **💬 Session Management** — Create, auto-title, and delete chat sessions
-- **🐳 Docker Support** — Full Docker Compose setup with Redis and Qdrant included
+- **🐳 Dockerized** — Full Docker Compose stack (FastAPI + Redis + Qdrant + Caddy)
+- **🔄 CI/CD** — Push to `main` auto-deploys the backend to AWS EC2 and the frontend to Cloudflare Pages
 
 ---
 
@@ -67,6 +70,31 @@ graph TB
     style Storage fill:#1e293b,stroke:#10b981,color:#e2e8f0
     style OPENAI fill:#1e293b,stroke:#f59e0b,color:#e2e8f0
 ```
+
+---
+
+## ☁️ Deployment Architecture
+
+The live app runs the **frontend on Cloudflare Pages** and the **backend + both databases on a single AWS EC2 instance**, containerized with Docker Compose behind Caddy (which provides automatic HTTPS).
+
+```mermaid
+graph LR
+    USER(["🌐 Browser"]) -->|HTTPS| CF["Cloudflare Pages<br/>React static site<br/>docmind-3hi.pages.dev"]
+    CF -->|"fetch() API calls (HTTPS)"| CADDY
+
+    subgraph EC2["AWS EC2 · t3.micro · Ubuntu (Docker Compose)"]
+        CADDY["Caddy<br/>reverse proxy + auto-HTTPS<br/>:80 / :443"] --> WEB["FastAPI (web)<br/>:8000 internal"]
+        WEB --> REDIS[("Redis")]
+        WEB --> QDRANT[("Qdrant")]
+    end
+
+    WEB -->|LLM + embeddings| OPENAI["OpenAI API"]
+
+    style EC2 fill:#0f172a,stroke:#f59e0b,color:#e2e8f0
+    style CF fill:#0f172a,stroke:#3b82f6,color:#e2e8f0
+```
+
+**CI/CD:** a push to `main` triggers two independent deploys — Cloudflare Pages rebuilds the frontend, and a **GitHub Actions** workflow (`.github/workflows/deploy.yml`) SSHes into EC2, syncs the repo, and rebuilds the container stack. See **[DEPLOY_AWS.md](DEPLOY_AWS.md)** for the full step-by-step guide and **[docs/DEPLOYMENT_EXPLAINED.md](docs/DEPLOYMENT_EXPLAINED.md)** for the architecture deep-dive.
 
 ---
 
@@ -164,63 +192,71 @@ graph LR
 | **Auth** | Email/Password, SHA-256 hashing, PyJWT (30-day tokens) |
 | **LLM** | OpenAI `gpt-4o-mini` (streaming) |
 | **Embeddings** | OpenAI `text-embedding-3-small` (1536 dimensions) |
-| **Vector DB** | Qdrant (Docker or Qdrant Cloud) |
-| **Session Store** | Redis (Docker, local, or Upstash) |
+| **Vector DB** | Qdrant (self-hosted container) |
+| **Session Store** | Redis (self-hosted container) |
 | **PDF Parsing** | PyMuPDF |
 | **Text Splitting** | LangChain `RecursiveCharacterTextSplitter` |
-| **Containerization** | Docker + Docker Compose |
+| **Reverse proxy / HTTPS** | Caddy (automatic Let's Encrypt) |
+| **Frontend hosting** | Cloudflare Pages |
+| **Backend hosting** | AWS EC2 (Docker Compose) |
+| **CI/CD** | GitHub Actions (auto-deploy on push to `main`) |
 
 ---
 
 ## 📁 Project Structure
 
 ```
-multi-pdf-qna/
+DocMind/
 ├── backend/
-│   ├── main.py              # FastAPI app — auth, sessions, upload, query APIs
-│   ├── ingestion.py         # PDF parsing, chunking, embedding pipeline
-│   ├── query.py             # RAG engine — MMR retrieval, prompt, streaming
-│   ├── database.py          # Qdrant client + collection bootstrapping
-│   └── requirements.txt     # Backend Python dependencies
+│   ├── main.py               # FastAPI app — auth, sessions, upload, query APIs
+│   ├── ingestion.py          # PDF parsing, chunking, embedding pipeline
+│   ├── query.py              # RAG engine — MMR retrieval, prompt, streaming
+│   └── database.py           # Qdrant client + collection bootstrapping
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx          # Main app — auth state, routing, API calls
-│   │   ├── main.jsx         # React entry point
+│   │   ├── App.jsx           # Main app — auth state, routing, API calls
+│   │   ├── main.jsx          # React entry point
+│   │   ├── index.css         # Tailwind theme + styles
 │   │   └── components/
-│   │       ├── Login.jsx    # Login / Signup UI
-│   │       ├── Sidebar.jsx  # Sessions, files, user email, sign out
-│   │       ├── Header.jsx   # Top bar with upload button
-│   │       ├── ChatInput.jsx    # Message input with Enter-to-send
-│   │       └── MessageList.jsx  # Chat messages with markdown rendering
-│   ├── index.html           # HTML shell with SEO meta tags
-│   ├── package.json         # Frontend dependencies
-│   └── vite.config.js       # Vite + Tailwind configuration
-├── Dockerfile               # Backend Docker image
-├── docker-compose.yml       # Full stack: backend + Redis + Qdrant
-├── requirements.txt         # Root-level Python dependencies (for Render)
-├── .env.example             # Environment variable template
+│   │       ├── Login.jsx     # Login / Signup UI
+│   │       ├── Sidebar.jsx   # Sessions, files, user email, sign out
+│   │       ├── Header.jsx    # Top bar with upload button
+│   │       ├── ChatInput.jsx     # Message input with Enter-to-send
+│   │       └── MessageList.jsx   # Chat messages + stateful empty state
+│   ├── index.html            # HTML shell with SEO meta tags
+│   ├── package.json          # Frontend dependencies
+│   └── vite.config.js        # Vite + Tailwind configuration
+├── deploy/                   # Production deployment (single EC2 box)
+│   ├── docker-compose.prod.yml   # Caddy + FastAPI + Redis + Qdrant
+│   ├── Caddyfile             # Reverse proxy + automatic HTTPS
+│   └── env.prod.example      # Server env template
+├── .github/workflows/deploy.yml  # CI/CD — auto-deploy backend to EC2
+├── Dockerfile                # Backend Docker image
+├── docker-compose.yml        # Local dev stack (backend + Redis + Qdrant)
+├── requirements.txt          # Python dependencies
+├── DEPLOY_AWS.md             # Step-by-step AWS + Cloudflare deployment guide
+├── docs/DEPLOYMENT_EXPLAINED.md  # Architecture deep-dive
+├── .env.example              # Environment variable template
 └── .gitignore
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started (Local)
 
 ### Prerequisites
 
 - Python 3.11+
-- Node.js 18+
-- Docker & Docker Compose *(optional)*
+- Node.js 20+
+- Docker & Docker Compose *(optional, recommended)*
 - An [OpenAI API Key](https://platform.openai.com/api-keys)
 
----
-
-### Option 1: Docker Compose (Recommended)
+### Option 1: Docker Compose (recommended)
 
 ```bash
 # 1. Clone
 git clone https://github.com/jenish102002/DocMind.git
-cd DocMind/multi-pdf-qna
+cd DocMind
 
 # 2. Configure
 cp .env.example .env
@@ -237,42 +273,25 @@ npm run dev
 
 Open `http://localhost:5173` → Sign up → Upload a PDF → Start chatting!
 
----
-
 ### Option 2: Manual Setup
 
 ```bash
-# 1. Start Qdrant
+# 1. Start Qdrant + Redis
 docker run -p 6333:6333 qdrant/qdrant
-
-# 2. Start Redis
 docker run -p 6379:6379 redis:alpine
 
-# 3. Backend
+# 2. Backend
 cd backend
 python -m venv venv
 source venv/bin/activate
 pip install -r ../requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
-# 4. Frontend (new terminal)
+# 3. Frontend (new terminal)
 cd frontend
 npm install
 npm run dev
 ```
-
----
-
-### Option 3: Cloud Services (Production)
-
-Use managed cloud services — no Docker needed:
-
-| Service | Provider | Setup |
-|---|---|---|
-| **Redis** | [Upstash](https://upstash.com) | Create DB → copy `rediss://` URL |
-| **Qdrant** | [Qdrant Cloud](https://cloud.qdrant.io) | Create cluster → copy URL + API key |
-| **Backend** | [Render](https://render.com) | Connect GitHub → set env vars |
-| **Frontend** | [Vercel](https://vercel.com) | Connect GitHub → set `VITE_API_URL` |
 
 ---
 
@@ -287,15 +306,15 @@ Use managed cloud services — no Docker needed:
 | `OPENAI_EMBEDDINGS_MODEL` | Embeddings model name | `text-embedding-3-small` |
 | `REDIS_URL` | Redis connection string (`rediss://` for TLS) | `redis://localhost:6379` |
 | `QDRANT_URL` | Qdrant instance URL | `http://localhost:6333` |
-| `QDRANT_API_KEY` | Qdrant Cloud API key | `None` |
+| `QDRANT_API_KEY` | Qdrant API key (if using a secured instance) | `None` |
 | `JWT_SECRET` | Secret key for JWT signing | *(required in production)* |
 | `FRONTEND_URL` | Frontend origin for CORS | `http://localhost:5173` |
 
-### Frontend (`frontend/.env`)
+### Frontend
 
 | Variable | Description |
 |---|---|
-| `VITE_API_URL` | Backend API URL (e.g., `https://your-backend.onrender.com`) |
+| `VITE_API_URL` | Backend API URL (e.g., `https://docmind-jenish.duckdns.org`) |
 
 ---
 
@@ -336,58 +355,15 @@ Use managed cloud services — no Docker needed:
 
 ---
 
-## 🧩 How It Works
+## ☁️ Production Deployment
 
-```mermaid
-graph TD
-    A["📤 Upload PDF"] --> B["Extract text with PyMuPDF"]
-    B --> C["Split into 700-token chunks<br/>100-token overlap"]
-    C --> D["Embed with text-embedding-3-small<br/>1536 dimensions"]
-    D --> E["Store in Qdrant with<br/>user-namespaced metadata"]
+The live app is deployed as:
 
-    F["💬 User asks a question"] --> G["MMR vector search<br/>k=8-10, λ=0.5-0.6"]
-    G --> H["Retrieve top chunks<br/>+ conversation history"]
-    H --> I["Build structured prompt<br/>with 7 grounding rules"]
-    I --> J["Stream response via<br/>gpt-4o-mini"]
-    J --> K["✅ Display answer<br/>+ save to Redis"]
+- **Frontend → Cloudflare Pages** — root directory `frontend`, build `npm run build`, output `dist`, env `VITE_API_URL` = backend URL. Auto-builds on every push to `main`.
+- **Backend + Redis + Qdrant → AWS EC2** — a single instance running `deploy/docker-compose.prod.yml` (Caddy + FastAPI + Redis + Qdrant). Caddy issues and renews a free Let's Encrypt certificate automatically.
+- **CI/CD → GitHub Actions** — `.github/workflows/deploy.yml` SSHes into EC2 on push to `main`, syncs to `origin/main`, rebuilds the stack, and health-checks the backend.
 
-    E -.-> G
-
-    style A fill:#1e40af,stroke:#3b82f6,color:#fff
-    style F fill:#7c3aed,stroke:#8b5cf6,color:#fff
-    style K fill:#059669,stroke:#10b981,color:#fff
-```
-
----
-
-## ☁️ Cloud Deployment
-
-### Backend (Render)
-
-1. Create a **Web Service** on Render
-2. Connect your GitHub repo
-3. Set **Root Directory**: *(leave blank)*
-4. Set **Build Command**: `pip install -r requirements.txt`
-5. Set **Start Command**: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
-6. Add all env vars from the table above
-
-### Frontend (Vercel)
-
-1. Import the repo on Vercel
-2. Set **Root Directory**: `frontend`
-3. Set **Framework Preset**: Vite
-4. Add env var: `VITE_API_URL` = your Render backend URL
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to open an issue or submit a pull request.
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit your changes: `git commit -m 'Add your feature'`
-4. Push and open a Pull Request
+📖 **Full walkthrough:** [DEPLOY_AWS.md](DEPLOY_AWS.md) · **Architecture deep-dive:** [docs/DEPLOYMENT_EXPLAINED.md](docs/DEPLOYMENT_EXPLAINED.md)
 
 ---
 
@@ -397,4 +373,4 @@ This project is licensed under the MIT License.
 
 ---
 
-*Built with ❤️ using OpenAI, Qdrant, FastAPI, and React.*
+*Built with OpenAI, Qdrant, FastAPI, and React — deployed on AWS EC2 & Cloudflare Pages.*
