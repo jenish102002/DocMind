@@ -1,0 +1,21 @@
+# ==========================================================================
+# Caddy reverse proxy — gives your backend free, automatic HTTPS.
+#
+# {$DOMAIN} is filled in from the DOMAIN variable in env.prod
+# (e.g. docmind-demo.duckdns.org). On first start, Caddy automatically
+# requests a free Let's Encrypt SSL certificate for that domain and renews
+# it forever. You do NOT need to buy or configure any certificate.
+#
+# All public traffic hits Caddy on 443, and Caddy forwards it internally to
+# the FastAPI "web" container on port 8000.
+# ==========================================================================
+
+{$DOMAIN} {
+	# Forward every request to the FastAPI backend.
+	# encode + flush_interval -1 keeps streaming (SSE) answers working.
+	reverse_proxy web:8000 {
+		flush_interval -1
+	}
+
+	encode gzip
+}

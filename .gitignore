@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+# Production server secrets (deploy/env.prod) — keep only the .example tracked
+env.prod
+deploy/env.prod
 
 # Python
 __pycache__/

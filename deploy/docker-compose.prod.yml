@@ -1,0 +1,66 @@
+# ==========================================================================
+# DocMind — Production stack for a single AWS EC2 instance
+# ==========================================================================
+# Runs 4 containers on one box:
+#   caddy  -> public HTTPS (ports 80/443), auto SSL, reverse-proxies to web
+#   web    -> FastAPI backend (internal only, not exposed to the internet)
+#   redis  -> users / sessions / chat history (persisted to a volume)
+#   qdrant -> vector embeddings (persisted to a volume)
+#
+# Only Caddy is reachable from the internet. redis/qdrant/web have NO public
+# ports, so they can only be reached from inside this Docker network.
+#
+# Start it with:   docker compose -f docker-compose.prod.yml --env-file env.prod up -d --build
+# ==========================================================================
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data       # stores the SSL certificates (so they survive restarts)
+      - caddy_config:/config
+    depends_on:
+      - web
+
+  web:
+    build:
+      context: ..               # repo root (where the Dockerfile lives)
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_LLM_MODEL=${OPENAI_LLM_MODEL:-gpt-4o-mini}
+      - OPENAI_EMBEDDINGS_MODEL=${OPENAI_EMBEDDINGS_MODEL:-text-embedding-3-small}
+      - REDIS_URL=redis://redis:6379
+      - QDRANT_URL=http://qdrant:6333
+      - FRONTEND_URL=${FRONTEND_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - redis
+      - qdrant
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]   # persist data to disk
+    volumes:
+      - redis_data:/data
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  caddy_data:
+  caddy_config:
+  redis_data:
+  qdrant_data:
