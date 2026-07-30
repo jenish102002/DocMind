@@ -47,7 +47,16 @@ jobs:
 
       - name: Health check
         run: |
-          sleep 5
-          code=$(curl -s -o /dev/null -m 20 -w "%{http_code}" https://docmind-jenish.duckdns.org/docs)
-          echo "Backend /docs -> HTTP $code"
-          test "$code" = "200"
+          # The web container restarts during deploy (~15s of downtime), and the
+          # t3.micro can be briefly slow, so retry before declaring failure.
+          for i in $(seq 1 15); do
+            code=$(curl -s -o /dev/null -m 20 -w "%{http_code}" https://docmind-jenish.duckdns.org/docs || echo 000)
+            echo "attempt $i: /docs -> HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "✅ backend healthy"
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "❌ backend did not return 200 after retries"
+          exit 1
