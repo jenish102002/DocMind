@@ -19,13 +19,13 @@ export const Sidebar = ({
   userEmail
 }) => {
   const sidebarContentJSX = (
-    <div className="flex flex-col h-full bg-background/40 backdrop-blur-3xl border-r border-white/5 relative shadow-2xl">
+    <div className="flex flex-col h-full bg-background/50 backdrop-blur-3xl border-r border-white/[0.06] relative shadow-2xl">
       <div className="p-6 flex justify-between items-center z-10 relative">
         <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-br from-accent to-indigo-600 p-2.5 rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+          <div className="aurora-gradient glow-aurora p-2.5 rounded-xl">
             <Cpu size={22} className="text-white" />
           </div>
-          <h1 className="font-bold text-xl tracking-tight text-white">DocMind</h1>
+          <h1 className="font-bold text-xl tracking-tight text-white font-display">DocMind</h1>
         </div>
         <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg">
           <X size={20} />
@@ -65,8 +65,8 @@ export const Sidebar = ({
             <Database size={13}/> Knowledge Base
           </p>
           <div className="space-y-1.5">
-            <button onClick={() => setSelectedFiles([])} className={`w-full text-left px-3 py-3 rounded-xl text-sm transition-all flex items-center gap-3 border ${selectedFiles.length === 0 ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 font-semibold shadow-sm' : 'border-transparent hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}>
-              <Layers size={18} className={selectedFiles.length === 0 ? 'text-indigo-400' : ''}/> 
+            <button onClick={() => setSelectedFiles([])} className={`w-full text-left px-3 py-3 rounded-xl text-sm transition-all flex items-center gap-3 border ${selectedFiles.length === 0 ? 'bg-cyan-500/10 border-cyan-400/30 text-cyan-200 font-semibold shadow-sm' : 'border-transparent hover:bg-white/5 text-slate-400 hover:text-slate-200'}`}>
+              <Layers size={18} className={selectedFiles.length === 0 ? 'text-cyan-300' : ''}/>
               <span>Global Context</span>
             </button>
             

@@ -14,11 +14,11 @@ export const MessageList = ({ messages, isThinking, chatEndRef, setInput }) => {
             transition={{duration: 0.5, ease: "easeOut"}}
             className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4"
           >
-            <div className="w-20 h-20 bg-gradient-to-tr from-accent to-indigo-500 flex items-center justify-center rounded-3xl mb-8 shadow-[0_0_50px_rgba(59,130,246,0.3)] relative overflow-hidden">
+            <div className="w-20 h-20 aurora-gradient flex items-center justify-center rounded-3xl mb-8 shadow-[0_0_50px_rgba(139,92,246,0.4)] relative overflow-hidden">
               <div className="absolute inset-0 bg-white/20 blur-xl" />
               <Sparkles className="text-white relative z-10" size={36} />
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-white tracking-tight">How can I help you today?</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4 tracking-tight font-display"><span className="text-white">How can I </span><span className="aurora-text">help</span><span className="text-white"> you today?</span></h2>
             <p className="text-slate-400 mb-12 max-w-lg text-sm sm:text-base leading-relaxed">
               Query your documents, extract key insights, or summarize complex information instantly using AI.
             </p>
@@ -54,7 +54,7 @@ export const MessageList = ({ messages, isThinking, chatEndRef, setInput }) => {
               className={`flex gap-4 sm:gap-5 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {m.role === 'assistant' && (
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-accent to-indigo-500 flex items-center justify-center shrink-0 mt-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                <div className="w-9 h-9 rounded-full aurora-gradient flex items-center justify-center shrink-0 mt-2 shadow-[0_0_15px_rgba(139,92,246,0.4)]">
                   <Bot size={18} className="text-white"/>
                 </div>
               )}

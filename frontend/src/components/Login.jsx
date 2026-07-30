@@ -62,8 +62,9 @@ export const Login = ({ onLogin }) => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background Effects */}
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
-      <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-accent/20 rounded-full blur-[120px] mix-blend-screen animate-pulse" style={{ animationDuration: '8s' }} />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-indigo-600/20 rounded-full blur-[100px] mix-blend-screen animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
+      <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-violet-600/25 rounded-full blur-[120px] mix-blend-screen animate-pulse" style={{ animationDuration: '8s' }} />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-cyan-500/20 rounded-full blur-[100px] mix-blend-screen animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
+      <div className="absolute top-[30%] right-[10%] w-[30vw] h-[30vw] bg-fuchsia-500/15 rounded-full blur-[110px] mix-blend-screen animate-pulse" style={{ animationDuration: '12s', animationDelay: '1s' }} />
 
       {/* Full Screen Loading Overlay */}
       <AnimatePresence>
@@ -102,18 +103,18 @@ export const Login = ({ onLogin }) => {
           <motion.div 
             whileHover={{ rotate: 180, scale: 1.1 }}
             transition={{ duration: 0.6, type: "spring" }}
-            className="w-16 h-16 bg-gradient-to-tr from-accent to-indigo-500 rounded-2xl mx-auto flex items-center justify-center shadow-xl shadow-accent/20 mb-5 relative overflow-hidden"
+            className="w-16 h-16 aurora-gradient glow-aurora rounded-2xl mx-auto flex items-center justify-center mb-5 relative overflow-hidden"
           >
             <div className="absolute inset-0 bg-white/20 blur-xl rounded-full" />
             <Sparkles className="text-white w-8 h-8 relative z-10" />
           </motion.div>
-          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">DocMind AI</h1>
+          <h1 className="text-4xl font-bold tracking-tight mb-2 font-display"><span className="text-white">DocMind</span> <span className="aurora-text">AI</span></h1>
           <p className="text-slate-400 text-sm font-medium">Your intelligent PDF workspace</p>
         </div>
 
         {/* Auth Card */}
         <div className="glass-panel rounded-3xl p-8 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent via-indigo-500 to-purple-500 opacity-50" />
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 opacity-70" />
           
           {/* Tabs */}
           <div className="flex bg-white/5 rounded-xl p-1 mb-8 relative">
@@ -194,7 +195,7 @@ export const Login = ({ onLogin }) => {
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full mt-2 bg-gradient-to-r from-accent to-indigo-500 hover:from-accent-hover hover:to-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-3.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(59,130,246,0.3)] group"
+              className="w-full mt-2 aurora-gradient hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-3.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(139,92,246,0.45)] group"
             >
               {loading ? (
                 <Loader2 size={18} className="animate-spin" />

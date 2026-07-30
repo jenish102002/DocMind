@@ -300,11 +300,10 @@ function App() {
   // Show loading spinner while validating JWT
   if (isVerifying) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
-        <div className="flex flex-col items-center gap-4 relative z-10">
-          <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-400 text-sm font-medium uppercase tracking-widest">Verifying session...</p>
+      <div className="aurora-bg min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
+        <div className="flex flex-col items-center gap-5 relative z-10">
+          <div className="w-12 h-12 rounded-full aurora-gradient glow-aurora animate-spin [mask:radial-gradient(farthest-side,transparent_calc(100%-3px),#000_0)]" />
+          <p className="aurora-text text-sm font-semibold uppercase tracking-[0.3em] font-display">Verifying session</p>
         </div>
       </div>
     );
@@ -316,8 +315,7 @@ function App() {
   }
 
   return (
-    <div className="h-screen h-[100dvh] bg-background flex overflow-hidden text-slate-200 selection:bg-accent/30 font-sans relative">
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none" />
+    <div className="aurora-bg h-screen h-[100dvh] bg-background flex overflow-hidden text-slate-300 selection:bg-accent/30 font-sans relative">
 
       <Sidebar
         sessions={sessions}
@@ -337,7 +335,7 @@ function App() {
         userEmail={userEmail}
       />
 
-      <main className="flex-1 flex flex-col relative h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-background to-background min-w-0 z-10">
+      <main className="flex-1 flex flex-col relative h-full min-w-0 z-10">
 
         <Header
           setSidebarOpen={setSidebarOpen}

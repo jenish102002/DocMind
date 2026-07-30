@@ -21,7 +21,7 @@ export const ChatInput = ({
           className="relative group"
         >
           {/* Animated Glow Behind Input */}
-          <div className={`absolute -inset-1 bg-gradient-to-r from-accent/20 via-indigo-500/20 to-purple-500/20 rounded-[2rem] blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-700 ${isThinking ? 'hidden' : ''}`} />
+          <div className={`absolute -inset-1 bg-gradient-to-r from-violet-500/25 via-fuchsia-500/25 to-cyan-400/25 rounded-[2rem] blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-700 ${isThinking ? 'hidden' : ''}`} />
 
           <div className={`relative flex items-end gap-3 glass-panel rounded-[2rem] p-2.5 transition-all duration-300 ${isThinking ? 'border-white/5 bg-white/[0.01]' : 'border-white/10 focus-within:border-accent/40 bg-white/[0.03] focus-within:bg-white/[0.04]'}`}>
             
@@ -40,7 +40,7 @@ export const ChatInput = ({
               className={`shrink-0 mb-1.5 mr-1.5 rounded-[1.25rem] transition-all flex items-center justify-center h-11 w-11 ${
                 !input.trim() || isThinking 
                   ? 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/5' 
-                  : 'bg-gradient-to-tr from-accent to-indigo-500 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)] border border-white/10'
+                  : 'aurora-gradient text-white shadow-[0_0_20px_rgba(139,92,246,0.5)] border border-white/10'
               }`}
             >
               {isThinking ? <Loader2 size={18} className="animate-spin text-slate-400" /> : <Send size={18} className={`ml-0.5 ${!input.trim() ? 'opacity-50' : ''}`} />}
