@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { FileUp } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { MessageList } from './components/MessageList';
@@ -21,6 +22,7 @@ function App() {
   const [isThinking, setIsThinking] = useState(false);
   const [processingFiles, setProcessingFiles] = useState({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -190,9 +192,13 @@ function App() {
     else setSelectedFiles(prev => [...prev, filename]);
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
+  const uploadFile = async (file) => {
     if (!file) return;
+    if (file.type !== 'application/pdf') {
+      setProcessingFiles(prev => ({ ...prev, [file.name]: { stage: 'error', progress: 0, message: 'Only PDF files are supported.' } }));
+      setTimeout(() => setProcessingFiles(prev => { const u = { ...prev }; delete u[file.name]; return u; }), 4000);
+      return;
+    }
     setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
@@ -201,7 +207,7 @@ function App() {
       setFiles(prev => Array.from(new Set([...prev, file.name])));
       setProcessingFiles(prev => ({ ...prev, [file.name]: { stage: 'pending', progress: 5, message: 'Uploading...' } }));
       pollProgress(file.name);
-    } catch (err) { 
+    } catch (err) {
       console.error('Upload failed', err);
       setProcessingFiles(prev => ({ ...prev, [file.name]: { stage: 'error', progress: 0, message: 'Upload failed. Please try again.' } }));
       setTimeout(() => {
@@ -214,9 +220,39 @@ function App() {
     }
     finally {
       setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    await uploadFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Drag-and-drop upload (anywhere in the app)
+  const dragDepth = useRef(0);
+  const handleDragEnter = (e) => {
+    if (![...(e.dataTransfer?.types || [])].includes('Files')) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setIsDragging(true);
+  };
+  const handleDragOver = (e) => { if (isDragging) e.preventDefault(); };
+  const handleDragLeave = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    dragDepth.current -= 1;
+    if (dragDepth.current <= 0) { dragDepth.current = 0; setIsDragging(false); }
+  };
+  const handleDrop = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadFile(file);
+  };
+  const openFilePicker = () => fileInputRef.current?.click();
 
   const pollProgress = (filename) => {
     const interval = setInterval(async () => {
@@ -316,8 +352,27 @@ function App() {
   }
 
   return (
-    <div className="h-screen h-[100dvh] bg-background flex overflow-hidden text-slate-200 selection:bg-accent/30 font-sans relative">
+    <div
+      className="h-screen h-[100dvh] bg-background flex overflow-hidden text-slate-200 selection:bg-accent/30 font-sans relative"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none" />
+
+      {/* Drag-and-drop overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm pointer-events-none animate-fade-in">
+          <div className="glass-panel rounded-3xl px-10 py-12 flex flex-col items-center gap-4 border-2 border-dashed border-accent/50">
+            <div className="w-16 h-16 rounded-2xl bg-accent/15 border border-accent/30 flex items-center justify-center">
+              <FileUp size={30} className="text-accent" />
+            </div>
+            <p className="text-lg font-semibold text-white">Drop your PDF to upload</p>
+            <p className="text-sm text-slate-400">We'll index it and add it to your knowledge base</p>
+          </div>
+        </div>
+      )}
 
       <Sidebar
         sessions={sessions}
@@ -352,6 +407,8 @@ function App() {
           isThinking={isThinking}
           chatEndRef={chatEndRef}
           setInput={setInput}
+          files={files}
+          onPickFile={openFilePicker}
         />
 
         <ChatInput

@@ -1,16 +1,58 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import { Sparkles, Bot, User } from 'lucide-react';
+import { Sparkles, Bot, User, UploadCloud, FileText } from 'lucide-react';
 
-export const MessageList = ({ messages, isThinking, chatEndRef, setInput }) => {
+const buildSuggestions = (files) => {
+  const doc = files[0];
+  if (!doc) return [];
+  return [
+    `Summarize the key points of ${doc}`,
+    `What are the main conclusions in ${doc}?`,
+    files.length > 1
+      ? `Compare the perspectives across my ${files.length} documents`
+      : `Extract the action items from ${doc}`,
+    `List the most important facts and figures`,
+  ];
+};
+
+export const MessageList = ({ messages, isThinking, chatEndRef, setInput, files = [], onPickFile }) => {
+  const hasDocs = files.length > 0;
+  const suggestions = buildSuggestions(files);
+
   return (
     <div className="flex-1 overflow-y-auto px-4 sm:px-6 pt-4 pb-10 custom-scrollbar scroll-smooth">
       <div className="max-w-4xl mx-auto space-y-8">
-        
-        {messages.length === 0 && (
-          <motion.div 
-            initial={{opacity:0, scale:0.95, y:20}} 
-            animate={{opacity:1, scale:1, y:0}} 
+
+        {messages.length === 0 && !hasDocs && (
+          <motion.div
+            initial={{opacity:0, scale:0.97, y:16}}
+            animate={{opacity:1, scale:1, y:0}}
+            transition={{duration: 0.5, ease: "easeOut"}}
+            className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4"
+          >
+            <h2 className="text-3xl sm:text-4xl font-bold mb-3 text-white tracking-tight">Add a document to begin</h2>
+            <p className="text-slate-400 mb-8 max-w-md text-sm sm:text-base leading-relaxed">
+              Upload a PDF and DocMind will read, index, and let you have a conversation with it.
+            </p>
+            <button
+              onClick={onPickFile}
+              className="group w-full max-w-lg rounded-3xl glass-panel border-2 border-dashed border-white/15 hover:border-accent/50 hover:bg-white/[0.04] transition-all p-10 flex flex-col items-center gap-4"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
+                <UploadCloud size={30} className="text-accent" />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-white">Upload your first PDF</p>
+                <p className="text-sm text-slate-500 mt-1">Drag &amp; drop anywhere, or <span className="text-accent">click to browse</span></p>
+              </div>
+            </button>
+          </motion.div>
+        )}
+
+        {messages.length === 0 && hasDocs && (
+          <motion.div
+            initial={{opacity:0, scale:0.97, y:16}}
+            animate={{opacity:1, scale:1, y:0}}
             transition={{duration: 0.5, ease: "easeOut"}}
             className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4"
           >
@@ -18,27 +60,23 @@ export const MessageList = ({ messages, isThinking, chatEndRef, setInput }) => {
               <div className="absolute inset-0 bg-white/20 blur-xl" />
               <Sparkles className="text-white relative z-10" size={36} />
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-white tracking-tight">How can I help you today?</h2>
-            <p className="text-slate-400 mb-12 max-w-lg text-sm sm:text-base leading-relaxed">
-              Query your documents, extract key insights, or summarize complex information instantly using AI.
+            <h2 className="text-3xl sm:text-4xl font-bold mb-3 text-white tracking-tight">Ask about your documents</h2>
+            <p className="text-slate-400 mb-10 max-w-lg text-sm sm:text-base leading-relaxed flex items-center gap-2">
+              <FileText size={15} className="text-slate-500" />
+              {files.length} document{files.length > 1 ? 's' : ''} ready — try one of these to start
             </p>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-3xl">
-              {[
-                "Summarize the main concepts discussed in the documents", 
-                "Extract the key action items and conclusions", 
-                "What are the primary arguments presented in these files?", 
-                "Compare the different perspectives across the documents"
-              ].map((suggestion, idx) => (
-                <motion.button 
+              {suggestions.map((suggestion, idx) => (
+                <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  key={idx} 
-                  onClick={() => setInput(suggestion)} 
+                  key={idx}
+                  onClick={() => setInput(suggestion)}
                   className="p-5 rounded-2xl glass-panel hover:bg-white/[0.04] hover:border-white/10 text-left transition-all group relative overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-accent/0 via-accent/5 to-accent/0 -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                  <p className="text-sm text-slate-300 group-hover:text-white leading-relaxed relative z-10">{suggestion}</p>
+                  <p className="text-sm text-slate-300 group-hover:text-white leading-relaxed relative z-10 truncate">{suggestion}</p>
                 </motion.button>
               ))}
             </div>
