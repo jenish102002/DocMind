@@ -1,125 +1,28 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
-/* ==========================================================================
-   AURORA NOIR — design system
-   Near-black canvas, living violet→cyan→magenta aurora, glass + glow.
-   ========================================================================== */
-
 @theme {
-  --color-background: #08080c;
-  --color-surface: #0d0d14;
-
-  /* Primary accent = violet; companions = cyan + magenta */
-  --color-accent: #8b5cf6;
-  --color-accent-hover: #7c3aed;
-  --color-aurora-violet: #8b5cf6;
-  --color-aurora-cyan: #22d3ee;
-  --color-aurora-magenta: #e879f9;
-
-  --color-glass: rgba(255, 255, 255, 0.04);
+  --color-background: #030712;
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-glass: rgba(255, 255, 255, 0.03);
   --color-glass-border: rgba(255, 255, 255, 0.08);
 }
 
 @layer base {
   body {
-    @apply bg-background text-slate-300 antialiased selection:bg-accent/30;
+    @apply bg-background text-slate-200 antialiased selection:bg-accent/30;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
   }
-
+  
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
-    letter-spacing: -0.02em;
+    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
   }
-
-  .font-display { font-family: 'Space Grotesk', system-ui, sans-serif; }
-
+  
   /* iOS safe area support */
   .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-}
-
-/* --------------------------------------------------------------------------
-   Living aurora background — a fixed, drifting mesh of colored light.
-   Apply `.aurora-bg` to a full-screen container.
-   -------------------------------------------------------------------------- */
-.aurora-bg { position: relative; isolation: isolate; }
-.aurora-bg::before {
-  content: "";
-  position: fixed;
-  inset: -25%;
-  z-index: -2;
-  pointer-events: none;
-  background:
-    radial-gradient(38% 38% at 18% 22%, rgba(139, 92, 246, 0.28), transparent 70%),
-    radial-gradient(32% 32% at 82% 14%, rgba(34, 211, 238, 0.20), transparent 70%),
-    radial-gradient(42% 42% at 72% 82%, rgba(232, 121, 249, 0.18), transparent 70%),
-    radial-gradient(30% 30% at 30% 88%, rgba(59, 130, 246, 0.14), transparent 70%);
-  filter: blur(40px) saturate(130%);
-  animation: auroraDrift 26s ease-in-out infinite alternate;
-}
-/* Subtle film grain so gradients never band */
-.aurora-bg::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.05;
-  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
-}
-
-@keyframes auroraDrift {
-  0%   { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
-  50%  { transform: translate3d(2%, -3%, 0) scale(1.12) rotate(2deg); }
-  100% { transform: translate3d(-2%, 2%, 0) scale(1.06) rotate(-1deg); }
-}
-
-/* --------------------------------------------------------------------------
-   Reusable aurora primitives
-   -------------------------------------------------------------------------- */
-.aurora-gradient {
-  background-image: linear-gradient(135deg, #8b5cf6 0%, #e879f9 50%, #22d3ee 100%);
-}
-.aurora-text {
-  background-image: linear-gradient(120deg, #c4b5fd 0%, #f0abfc 45%, #67e8f9 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.glow-aurora  { box-shadow: 0 0 24px rgba(139, 92, 246, 0.45); }
-.glow-cyan    { box-shadow: 0 0 24px rgba(34, 211, 238, 0.40); }
-.ring-glow    { box-shadow: 0 0 0 1px rgba(139,92,246,0.35), 0 0 28px rgba(139,92,246,0.35); }
-
-/* Animated conic border for hero elements */
-.aurora-border {
-  position: relative;
-}
-.aurora-border::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(from var(--a, 0deg), #8b5cf6, #22d3ee, #e879f9, #8b5cf6);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  opacity: 0.7;
-  animation: spinBorder 6s linear infinite;
-}
-@keyframes spinBorder { to { --a: 360deg; transform: rotate(360deg); } }
-@property --a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
-
-/* --------------------------------------------------------------------------
-   Glass surfaces
-   -------------------------------------------------------------------------- */
-.glass-panel {
-  @apply bg-white/[0.03] backdrop-blur-2xl border border-white/[0.07] shadow-[0_8px_40px_-8px_rgba(0,0,0,0.6)];
-}
-.glass-strong {
-  @apply bg-white/[0.05] backdrop-blur-2xl border border-white/10 shadow-[0_8px_40px_-8px_rgba(0,0,0,0.7)];
 }
 
 /* Custom Scrollbars */
@@ -128,40 +31,45 @@
 .custom-scrollbar::-webkit-scrollbar-track,
 .prose pre::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb,
-.prose pre::-webkit-scrollbar-thumb {
-  background: linear-gradient(rgba(139,92,246,0.4), rgba(34,211,238,0.4));
-  border-radius: 10px;
+.prose pre::-webkit-scrollbar-thumb { 
+  background: rgba(255, 255, 255, 0.08); 
+  border-radius: 10px; 
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover,
-.prose pre::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(rgba(139,92,246,0.7), rgba(34,211,238,0.7));
+.prose pre::-webkit-scrollbar-thumb:hover { 
+  background: rgba(255, 255, 255, 0.15); 
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  @apply bg-white/[0.02] backdrop-blur-xl border border-white/[0.05] shadow-[0_8px_32px_0_rgba(0,0,0,0.3)];
 }
 
 /* Smooth Animations */
 .animate-fade-in {
   animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* --------------------------------------------------------------------------
-   Markdown / prose (aurora-tinted)
-   -------------------------------------------------------------------------- */
-.prose { @apply leading-relaxed text-slate-300; }
+/* Markdown Styling for Enlisted Results */
+.prose {
+  @apply leading-relaxed text-slate-300;
+}
 .prose p { @apply mb-4 last:mb-0; }
-.prose strong { @apply text-white font-semibold; }
+.prose strong { @apply text-slate-100 font-semibold; }
 .prose ul { @apply list-disc list-outside ml-5 space-y-1.5 mb-5; }
 .prose ol { @apply list-decimal list-outside ml-5 space-y-1.5 mb-5; }
 .prose li { @apply text-slate-300; }
-.prose li::marker { color: #a78bfa; }
-.prose code { @apply bg-violet-500/10 px-1.5 py-0.5 rounded-md text-cyan-200 font-mono text-[0.85em] border border-violet-400/15; }
-.prose pre { @apply bg-black/50 p-4 rounded-xl overflow-x-auto border border-white/10 mb-5; }
+.prose code { @apply bg-white/10 px-1.5 py-0.5 rounded-md text-blue-200 font-mono text-[0.85em] border border-white/5; }
+.prose pre { @apply bg-black/40 p-4 rounded-xl overflow-x-auto border border-white/10 mb-5; }
 .prose pre code { @apply bg-transparent border-none text-slate-300 p-0 text-sm; }
-.prose h1, .prose h2, .prose h3 { @apply text-white font-semibold mt-6 mb-3; font-family: 'Space Grotesk', sans-serif; }
+.prose h1, .prose h2, .prose h3 { @apply text-slate-100 font-semibold mt-6 mb-3; }
 .prose h1 { @apply text-xl; }
 .prose h2 { @apply text-lg; }
 .prose h3 { @apply text-base; }
-.prose blockquote { @apply border-l-2 border-violet-400/60 pl-4 italic text-slate-400 my-4 bg-white/[0.03] py-2 pr-4 rounded-r-lg; }
-.prose a { @apply text-cyan-300 hover:text-cyan-200 underline decoration-cyan-400/30 hover:decoration-cyan-300 transition-colors; }
+.prose blockquote { @apply border-l-4 border-blue-500/50 pl-4 italic text-slate-400 my-4 bg-white/5 py-2 pr-4 rounded-r-lg; }
+.prose a { @apply text-blue-400 hover:text-blue-300 underline decoration-blue-500/30 hover:decoration-blue-400 transition-colors; }

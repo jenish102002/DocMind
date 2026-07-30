@@ -27,12 +27,12 @@ export const Header = ({
             {selectedFiles.length > 0 ? (
               <>
                 <div className="absolute inset-0 bg-accent rounded-full animate-ping opacity-40" />
-                <div className="w-2.5 h-2.5 rounded-full bg-accent shadow-[0_0_10px_rgba(139,92,246,0.8)] relative z-10" />
+                <div className="w-2.5 h-2.5 rounded-full bg-accent shadow-[0_0_10px_rgba(59,130,246,0.8)] relative z-10" />
               </>
             ) : (
               <>
-                <div className="absolute inset-0 bg-cyan-400 rounded-full animate-ping opacity-25" />
-                <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.6)] relative z-10" />
+                <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-20" />
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] relative z-10" />
               </>
             )}
           </div>
@@ -44,7 +44,7 @@ export const Header = ({
               </>
             ) : (
               <>
-                <Sparkles size={13} className="text-cyan-300" />
+                <Sparkles size={13} className="text-emerald-400" />
                 Global Search Active
               </>
             )}
@@ -56,7 +56,7 @@ export const Header = ({
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
         onClick={() => fileInputRef.current?.click()} 
-        className="relative z-10 shrink-0 flex items-center gap-2 aurora-gradient hover:brightness-110 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-[0_0_18px_rgba(139,92,246,0.45)]"
+        className="relative z-10 shrink-0 flex items-center gap-2 bg-accent hover:bg-accent-hover text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-[0_0_15px_rgba(59,130,246,0.4)]"
       >
         {isUploading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16}/>} 
         <span className="hidden sm:inline">{isUploading ? 'Uploading...' : 'Upload PDF'}</span>
