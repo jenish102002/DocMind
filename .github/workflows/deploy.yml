@@ -34,9 +34,11 @@ jobs:
       - name: Deploy over SSH
         run: |
           ssh -i ~/.ssh/id_rsa "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" bash -euo pipefail <<'DEPLOY'
+            cd ~/DocMind
+            echo "== syncing to origin/main (force, survives history rewrites) =="
+            git fetch --quiet origin main
+            git reset --hard origin/main
             cd ~/DocMind/deploy
-            echo "== pulling latest =="
-            git pull origin main
             echo "== rebuilding + restarting stack =="
             docker compose -f docker-compose.prod.yml --env-file env.prod up -d --build
             echo "== pruning old images =="
